@@ -1,13 +1,49 @@
 "use client";
 
-import JsBarcode from "jsbarcode";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AppLayout from "../../../components/layout/AppLayout";
+import LrPrintLayout from "../../../components/bookings/LrPrintLayout";
+import SearchableSelect from "../../../components/ui/SearchableSelect";
+import PartySearchSelect from "../../../components/bookings/PartySearchSelect";
+import { INDIA_CITY_OPTIONS } from "@/lib/indiaCities";
 
 const NAVY = "#071B34";
 const NAVY_LIGHT = "#14304D";
 const ORANGE = "#F97316";
 const LR_STORAGE_KEY = "agc_next_lr";
 const FIRST_LR_NUMBER = 7900000001;
+const GST_RATE_OPTIONS = [0, 5, 12, 18, 28];
+const COD_HANDLING_FEE = 100;
+
+const getTodayDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
+const getCurrentTime = () => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+};
+
+const PINCODE_API_BASE = "https://api.postalpincode.in/pincode";
+
+const lookupPincode = async (pincode) => {
+  const response = await fetch(`${PINCODE_API_BASE}/${pincode}`);
+  if (!response.ok) {
+    throw new Error("Pincode lookup failed");
+  }
+  const payload = await response.json();
+  const block = Array.isArray(payload) ? payload[0] : null;
+  if (!block || block.Status !== "Success" || !Array.isArray(block.PostOffice) || !block.PostOffice.length) {
+    return { ok: false, message: block?.Message || "No records found" };
+  }
+  const office = block.PostOffice[0];
+  return {
+    ok: true,
+    city: office.District || office.Name || "",
+    state: office.State || "",
+  };
+};
 
 const normalizeLrNumber = (value) => {
   const numericValue = Number(value);
@@ -22,34 +58,6 @@ const readNextLrNumber = () => {
   const nextLr = normalizeLrNumber(storedValue);
   if (!storedValue || storedValue !== nextLr) window.localStorage.setItem(LR_STORAGE_KEY, nextLr);
   return nextLr;
-};
-
-const Code128Barcode = ({ value }) => (
-  <Code128BarcodeSvg value={value} />
-);
-
-const Code128BarcodeSvg = ({ value }) => {
-  const barcodeRef = useRef(null);
-
-  useEffect(() => {
-    if (!barcodeRef.current || !value) return;
-    JsBarcode(barcodeRef.current, value, {
-      format: "CODE128",
-      displayValue: false,
-      height: 42,
-      width: 2,
-      margin: 0,
-      background: "#ffffff",
-      lineColor: "#000000",
-    });
-  }, [value]);
-
-  return (
-    <div className="barcode-box" aria-label={`Code128 barcode ${value}`}>
-      <svg ref={barcodeRef} />
-      <div className="barcode-number">{value}</div>
-    </div>
-  );
 };
 
 const SectionCard = ({ title, subtitle, children, icon }) => (
@@ -187,20 +195,183 @@ const Field = ({ label, children, required, help }) => (
 );
 
 export default function NewBookingPage() {
-  const [activeNav, setActiveNav] = useState("bookings");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [lrMode, setLrMode] = useState("automatic");
   const lrInputRef = useRef(null);
   const [lrCodeType, setLrCodeType] = useState("");
   const [lrCodeOpen, setLrCodeOpen] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [customerSearchRole, setCustomerSearchRole] = useState("");
+  const [consignorPartyId, setConsignorPartyId] = useState("");
+  const [consigneePartyId, setConsigneePartyId] = useState("");
+  const [partySaveState, setPartySaveState] = useState({ consignor: "", consignee: "" });
   const [branches, setBranches] = useState([]);
   const [branchSearchRole, setBranchSearchRole] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
   const [rateLookupReady, setRateLookupReady] = useState(false);
-  const [manualFreightOverride, setManualFreightOverride] = useState(false);
   const [rateBadge, setRateBadge] = useState("");
+  const [destinations, setDestinations] = useState([]);
+  const [timeIsManual, setTimeIsManual] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState({
+    consignor: false,
+    consignee: false,
+  });
+  const [pincodeErrors, setPincodeErrors] = useState({
+    consignor: "",
+    consignee: "",
+  });
+  const [routeLoading, setRouteLoading] = useState({ from: false, to: false });
+  const [routeError, setRouteError] = useState({ from: "", to: "" });
+  const [routeAutoFilled, setRouteAutoFilled] = useState({ from: false, to: false });
+  const lastPincodeFetchRef = useRef({ consignor: "", consignee: "" });
+  const lastRoutePincodeFetchRef = useRef({ from: "", to: "" });
+  const [form, setForm] = useState({
+    lrNumber: String(FIRST_LR_NUMBER), lrCode: "", bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: "",
+    consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
+    consignorCity: "", consignorState: "", consignorAddress: "",
+    consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
+    consigneeCity: "", consigneeState: "", consigneeAddress: "",
+    deliveryBranch: "", toStation: "", deliveryAt: "",
+    rate: "", rateSource: "manual", rateType: "Per Kg",
+    articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
+    invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
+    dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
+    dimensionUnit: "cm", dimensionPieces: "1",
+    riskType: "", declaredValue: "", codAmount: 0,
+    freight: "", freightManuallyEdited: false, hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
+    builtyCharge: "150",
+    paymentType: "to_pay",
+  });
+
+  const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
+
+  const cityOptions = useMemo(() => INDIA_CITY_OPTIONS, []);
+
+  const normalizeStation = (value) => String(value || "").trim().toLowerCase().split(",")[0].trim();
+
+  const autoFillRate = useCallback((station) => {
+    const key = normalizeStation(station);
+    if (!key) {
+      setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
+      return;
+    }
+    try {
+      const rateMaster = JSON.parse(window.localStorage.getItem(RATE_STORAGE_KEY) || "[]");
+      const match = rateMaster.find((rate) => {
+        const isActive = (rate.status || "Active") === "Active";
+        if (!isActive || !rate.generalRate) return false;
+        const stationCandidates = [rate.toStation, rate.toBranchName, rate.toBranch].map(normalizeStation);
+        return stationCandidates.includes(key);
+      });
+      if (match) {
+        setForm((previous) => ({
+          ...previous,
+          rate: String(match.rate ?? ""),
+          rateType: match.rateType || "Per Kg",
+          rateSource: "auto",
+          freightManuallyEdited: false,
+        }));
+        setRateBadge("auto-general");
+      } else {
+        setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
+        setRateBadge("missing");
+      }
+    } catch {
+      setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
+    }
+  }, []);
+
+  const enableRateLookup = () => {
+    setRateLookupReady(true);
+    setForm((previous) => ({ ...previous, freightManuallyEdited: false }));
+  };
+
+  const handleFromChange = (value) => {
+    setRouteAutoFilled((previous) => ({ ...previous, from: false }));
+    setRouteError((previous) => ({ ...previous, from: "" }));
+    if (!/^\d{6}$/.test(String(value || "").trim())) {
+      lastRoutePincodeFetchRef.current.from = "";
+    }
+    setForm((previous) => ({ ...previous, bookingBranch: value }));
+    enableRateLookup();
+  };
+
+  const handleDestinationChange = (value) => {
+    setRouteAutoFilled((previous) => ({ ...previous, to: false }));
+    setRouteError((previous) => ({ ...previous, to: "" }));
+    if (!/^\d{6}$/.test(String(value || "").trim())) {
+      lastRoutePincodeFetchRef.current.to = "";
+    }
+    const station = String(value || "").trim();
+    const branchKey = station.split(",")[0].trim() || station;
+    setForm((previous) => ({ ...previous, toStation: station, deliveryBranch: branchKey }));
+    autoFillRate(branchKey);
+    enableRateLookup();
+  };
+
+  const handleDeliveryAtChange = (value) => {
+    const trimmed = String(value || "").trim();
+    setForm((previous) => {
+      const destEmpty = !String(previous.toStation || "").trim();
+      return {
+        ...previous,
+        deliveryAt: trimmed,
+        ...(destEmpty ? { toStation: trimmed, deliveryBranch: trimmed } : {}),
+      };
+    });
+    const rateKey = trimmed.split(",")[0].trim() || trimmed;
+    autoFillRate(rateKey);
+    enableRateLookup();
+  };
+
+  const flashRouteAutoFilled = (role) => {
+    setRouteAutoFilled((previous) => ({ ...previous, [role]: true }));
+    window.setTimeout(() => {
+      setRouteAutoFilled((previous) => ({ ...previous, [role]: false }));
+    }, 2000);
+  };
+
+  const handleRoutePincodeDetected = (role) => async (pincode) => {
+    if (lastRoutePincodeFetchRef.current[role] === pincode) return;
+    lastRoutePincodeFetchRef.current[role] = pincode;
+    setRouteLoading((previous) => ({ ...previous, [role]: true }));
+    setRouteError((previous) => ({ ...previous, [role]: "" }));
+
+    try {
+      const result = await lookupPincode(pincode);
+      if (!result.ok) {
+        setRouteError((previous) => ({ ...previous, [role]: result.message || "Pincode not found" }));
+        lastRoutePincodeFetchRef.current[role] = "";
+        return;
+      }
+      const display = `${result.city}, ${result.state}`;
+      if (role === "from") {
+        setForm((previous) => ({ ...previous, bookingBranch: display }));
+        enableRateLookup();
+      } else {
+        const branchKey = result.city;
+        setForm((previous) => ({
+          ...previous,
+          toStation: display,
+          deliveryBranch: branchKey,
+        }));
+        autoFillRate(branchKey);
+        enableRateLookup();
+      }
+      flashRouteAutoFilled(role);
+    } catch {
+      setRouteError((previous) => ({ ...previous, [role]: "Network error" }));
+      lastRoutePincodeFetchRef.current[role] = "";
+    } finally {
+      setRouteLoading((previous) => ({ ...previous, [role]: false }));
+    }
+  };
+
+  const handleRateChange = (event) => {
+    const value = event.target.value;
+    setForm((previous) => ({ ...previous, rate: value, rateSource: "manual" }));
+    setRateBadge("manual");
+    enableRateLookup();
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -208,9 +379,11 @@ export default function NewBookingPage() {
     const lr = params.get("lr");
 
     if (editRequested && lr) {
+      (async () => {
       try {
-        const records = JSON.parse(window.localStorage.getItem("agc_bookings") || "[]");
-        const record = records.find((item) => item.lrNumber === lr);
+        const response = await fetch(`/api/bookings/${encodeURIComponent(lr)}`);
+        const data = await response.json();
+        const record = response.ok ? data.booking : null;
         if (!record) {
           window.alert(`Booking ${lr} was not found.`);
           return;
@@ -222,8 +395,8 @@ export default function NewBookingPage() {
         const dimensions = record.dimensions || {};
         const charges = record.charges || {};
         setIsEditMode(true);
+        setTimeIsManual(true);
         setRateLookupReady(false);
-        setManualFreightOverride(false);
         setRateBadge("");
         setForm((previous) => ({
           ...previous,
@@ -247,7 +420,11 @@ export default function NewBookingPage() {
           consigneeState: consignee.state || "",
           consigneeAddress: consignee.address || "",
           deliveryBranch: route.deliveryBranch || "",
+          toStation: route.toStation || route.deliveryBranch || "",
           deliveryAt: route.deliveryAt || "",
+          rate: record.unitRate ? String(record.unitRate) : "",
+          rateSource: record.rateSource || "manual",
+          rateType: record.rateType || "Per Kg",
           articles: goods.articles || "",
           packageType: goods.packageType || "",
           noOfPackages: goods.packages ?? "",
@@ -264,6 +441,7 @@ export default function NewBookingPage() {
           dimensionPieces: dimensions.pieces ?? "1",
           riskType: goods.riskType || "",
           declaredValue: goods.declaredValue ?? "",
+          codAmount: goods.codAmount ?? 0,
           freight: charges.freight ?? "",
           hamali: charges.hamali ?? "",
           doorDelivery: charges.doorDelivery ?? "",
@@ -271,65 +449,144 @@ export default function NewBookingPage() {
           selfBuiltyCharge: charges.selfBuiltyCharge ?? "",
           otherCharges: charges.otherCharges ?? "",
           gstOnFreight: charges.gstOnFreight ?? "",
+          applyGst: charges.applyGst ?? true,
+          gstRate: charges.gstRate ?? 5,
+          freightManuallyEdited: false,
           builtyCharge: charges.builtyCharge ?? "150",
           paymentType: record.paymentType || "to_pay",
         }));
       } catch {
         window.alert("Unable to load booking for edit.");
       }
+      })();
       return;
     }
 
     const nextLr = readNextLrNumber();
-    setForm((previous) => ({ ...previous, lrNumber: nextLr }));
+    setTimeIsManual(false);
+    setForm((previous) => ({
+      ...previous,
+      lrNumber: nextLr,
+      bookingDate: getTodayDate(),
+      bookingTime: getCurrentTime(),
+    }));
     setRateLookupReady(true);
   }, []);
 
-  const [form, setForm] = useState({
-    lrNumber: String(FIRST_LR_NUMBER), lrCode: "", bookingDate: "", bookingTime: "", bookingBranch: "",
-    consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
-    consignorCity: "", consignorState: "", consignorAddress: "",
-    consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
-    consigneeCity: "", consigneeState: "", consigneeAddress: "",
-    deliveryBranch: "", deliveryAt: "",
-    articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
-    invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
-    dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
-    dimensionUnit: "cm", dimensionPieces: "1",
-    riskType: "", declaredValue: "",
-    freight: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "",
-    builtyCharge: "150",
-    paymentType: "to_pay",
-  });
+  useEffect(() => {
+    if (isEditMode || timeIsManual) return undefined;
+    const tick = () => {
+      setForm((previous) => ({ ...previous, bookingTime: getCurrentTime() }));
+    };
+    const intervalId = window.setInterval(tick, 60000);
+    return () => window.clearInterval(intervalId);
+  }, [isEditMode, timeIsManual]);
 
   useEffect(() => {
     try {
       setCustomers(JSON.parse(window.localStorage.getItem("agc_customers") || "[]"));
       setBranches(JSON.parse(window.localStorage.getItem("agc_branches") || "[]").filter((branch) => branch.status !== "Disabled"));
+      const rateMaster = JSON.parse(window.localStorage.getItem(RATE_STORAGE_KEY) || "[]");
+      const stationList = [
+        ...new Set(
+          rateMaster
+            .filter((rate) => (rate.status || "Active") === "Active")
+            .map((rate) => {
+              const station = rate.toStation || rate.toBranchName || rate.toBranch;
+              return station ? String(station).trim() : "";
+            })
+            .filter(Boolean),
+        ),
+      ].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" }));
+      setDestinations(stationList);
     } catch {
       setCustomers([]);
       setBranches([]);
+      setDestinations([]);
     }
   }, []);
 
-  const enableRateLookup = () => {
-    setRateLookupReady(true);
-    setManualFreightOverride(false);
-  };
-
   const handleChange = (field) => (e) => {
     const value = e.target.value;
+    if (field === "freight") {
+      setForm((previous) => ({ ...previous, freight: value, freightManuallyEdited: true }));
+      setRateBadge("manual");
+      return;
+    }
     setForm((previous) => ({ ...previous, [field]: value }));
     if (RATE_TRIGGER_FIELDS.includes(field)) enableRateLookup();
-    if (field === "freight") {
-      setManualFreightOverride(true);
-      setRateBadge("manual");
-    }
   };
+
+  const handleFreightAutoRecalculate = () => {
+    setForm((previous) => ({ ...previous, freightManuallyEdited: false }));
+    setRateBadge(form.rateSource === "auto" ? "auto-general" : "");
+  };
+
+  const handleBookingTimeChange = (event) => {
+    setTimeIsManual(true);
+    handleChange("bookingTime")(event);
+  };
+
+  const isBookingToday = form.bookingDate === getTodayDate();
 
   const customerRoleFields = {
     consignor: { name: "consignorName", mobile: "consignorMobile", gst: "consignorGst", address: "consignorAddress", pincode: "consignorPincode", city: "consignorCity", state: "consignorState" },
     consignee: { name: "consigneeName", mobile: "consigneeMobile", gst: "consigneeGst", address: "consigneeAddress", pincode: "consigneePincode", city: "consigneeCity", state: "consigneeState" },
+  };
+
+  const handlePincodeChange = (role) => async (event) => {
+    const digits = event.target.value.replace(/\D/g, "").slice(0, 6);
+    const fields = customerRoleFields[role];
+    setForm((previous) => ({ ...previous, [fields.pincode]: digits }));
+    setPincodeErrors((previous) => ({ ...previous, [role]: "" }));
+
+    if (digits.length < 6) {
+      setPincodeLoading((previous) => ({ ...previous, [role]: false }));
+      lastPincodeFetchRef.current[role] = "";
+      return;
+    }
+
+    if (lastPincodeFetchRef.current[role] === digits) return;
+    lastPincodeFetchRef.current[role] = digits;
+    setPincodeLoading((previous) => ({ ...previous, [role]: true }));
+
+    try {
+      const result = await lookupPincode(digits);
+      if (!result.ok) {
+        setPincodeErrors((previous) => ({ ...previous, [role]: result.message }));
+        setForm((previous) => ({ ...previous, [fields.city]: "", [fields.state]: "" }));
+        return;
+      }
+      const cityState = [result.city, result.state].filter(Boolean).join(", ");
+      const districtKey = result.city || cityState;
+
+      setForm((previous) => ({
+        ...previous,
+        [fields.city]: result.city,
+        [fields.state]: result.state,
+        ...(role === "consignor" ? { bookingBranch: cityState } : {}),
+        ...(role === "consignee"
+          ? { toStation: cityState, deliveryBranch: districtKey }
+          : {}),
+      }));
+
+      if (role === "consignor") {
+        setRouteError((previous) => ({ ...previous, from: "" }));
+        flashRouteAutoFilled("from");
+        enableRateLookup();
+      }
+      if (role === "consignee") {
+        setRouteError((previous) => ({ ...previous, to: "" }));
+        autoFillRate(districtKey);
+        flashRouteAutoFilled("to");
+        enableRateLookup();
+      }
+    } catch {
+      setPincodeErrors((previous) => ({ ...previous, [role]: "Unable to fetch pincode details. Try again." }));
+      setForm((previous) => ({ ...previous, [fields.city]: "", [fields.state]: "" }));
+    } finally {
+      setPincodeLoading((previous) => ({ ...previous, [role]: false }));
+    }
   };
 
   const handleCustomerNameChange = (role) => (e) => {
@@ -354,6 +611,79 @@ export default function NewBookingPage() {
     }));
     setCustomerSearchRole("");
     if (role === "consignor") enableRateLookup();
+  };
+
+  const applySavedParty = (role, party) => {
+    const fields = customerRoleFields[role];
+    const cityState = [party.city, party.state].filter(Boolean).join(", ");
+    setForm((previous) => ({
+      ...previous,
+      [fields.name]: party.name || "",
+      [fields.mobile]: party.mobile || "",
+      [fields.gst]: party.gst || "",
+      [fields.address]: party.address || "",
+      [fields.pincode]: party.pincode || "",
+      [fields.city]: party.city || "",
+      [fields.state]: party.state || "",
+      ...(role === "consignor" && cityState ? { bookingBranch: cityState } : {}),
+      ...(role === "consignee" && cityState
+        ? { toStation: cityState, deliveryBranch: party.city || cityState }
+        : {}),
+    }));
+    if (role === "consignor") {
+      setConsignorPartyId(party.id || "");
+      enableRateLookup();
+    } else {
+      setConsigneePartyId(party.id || "");
+      if (party.city || cityState) autoFillRate(party.city || cityState);
+      enableRateLookup();
+    }
+    setPartySaveState((previous) => ({ ...previous, [role]: "" }));
+  };
+
+  const savePartyToDb = async (role) => {
+    const fields = customerRoleFields[role];
+    const payload = {
+      partyType: role,
+      name: form[fields.name].trim(),
+      mobile: form[fields.mobile],
+      gst: form[fields.gst],
+      pincode: form[fields.pincode],
+      city: form[fields.city],
+      state: form[fields.state],
+      address: form[fields.address],
+    };
+    if (!payload.name) {
+      window.alert("Party name is required to save.");
+      return;
+    }
+    setPartySaveState((previous) => ({ ...previous, [role]: "saving" }));
+    try {
+      const partyId = role === "consignor" ? consignorPartyId : consigneePartyId;
+      const url = partyId ? `/api/parties/${encodeURIComponent(partyId)}` : "/api/parties";
+      const method = partyId ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        window.alert(data.error || "Failed to save party.");
+        setPartySaveState((previous) => ({ ...previous, [role]: "" }));
+        return;
+      }
+      const savedId = data.party?.id;
+      if (role === "consignor" && savedId) setConsignorPartyId(savedId);
+      if (role === "consignee" && savedId) setConsigneePartyId(savedId);
+      setPartySaveState((previous) => ({ ...previous, [role]: "saved" }));
+      window.setTimeout(() => {
+        setPartySaveState((previous) => (previous[role] === "saved" ? { ...previous, [role]: "" } : previous));
+      }, 2500);
+    } catch {
+      window.alert("Failed to save party.");
+      setPartySaveState((previous) => ({ ...previous, [role]: "" }));
+    }
   };
 
   const saveNewCustomer = (role) => {
@@ -456,22 +786,33 @@ export default function NewBookingPage() {
     setLrCodeType(""); setLrCodeOpen(false);
     if (!isEditMode) setLrMode("automatic");
     setRateLookupReady(true);
-    setManualFreightOverride(false);
     setRateBadge("");
+    setTimeIsManual(false);
+    lastPincodeFetchRef.current = { consignor: "", consignee: "" };
+    lastRoutePincodeFetchRef.current = { from: "", to: "" };
+    setPincodeLoading({ consignor: false, consignee: false });
+    setPincodeErrors({ consignor: "", consignee: "" });
+    setRouteLoading({ from: false, to: false });
+    setRouteError({ from: "", to: "" });
+    setRouteAutoFilled({ from: false, to: false });
+    setConsignorPartyId("");
+    setConsigneePartyId("");
+    setPartySaveState({ consignor: "", consignee: "" });
     const nextLr = isEditMode ? form.lrNumber : readNextLrNumber();
     setForm({
-      lrNumber: nextLr, lrCode: "", bookingDate: "", bookingTime: "", bookingBranch: "",
+      lrNumber: nextLr, lrCode: "", bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: "",
       consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
       consignorCity: "", consignorState: "", consignorAddress: "",
       consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
       consigneeCity: "", consigneeState: "", consigneeAddress: "",
-      deliveryBranch: "", deliveryAt: "",
+      deliveryBranch: "", toStation: "", deliveryAt: "",
+      rate: "", rateSource: "manual", rateType: "Per Kg",
       articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
       invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
       dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
       dimensionUnit: "cm", dimensionPieces: "1",
-      riskType: "", declaredValue: "",
-      freight: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "",
+      riskType: "", declaredValue: "", codAmount: 0,
+      freight: "", freightManuallyEdited: false, hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
       builtyCharge: "150",
       paymentType: "to_pay",
     });
@@ -497,7 +838,29 @@ export default function NewBookingPage() {
   const packagesCount = compute("noOfPackages");
 
   useEffect(() => {
-    if (!rateLookupReady || manualFreightOverride) return;
+    const nextCharged = chargedWeight > 0 ? chargedWeight.toFixed(2) : "";
+    setForm((previous) => (String(previous.chargedWeight) === nextCharged ? previous : { ...previous, chargedWeight: nextCharged }));
+  }, [chargedWeight]);
+
+  useEffect(() => {
+    if (form.freightManuallyEdited) return;
+    const unitRate = Number(form.rate) || 0;
+    const rateType = form.rateType || "Per Kg";
+    let autoFreight = 0;
+    if (rateType === "Per Kg" || rateType === "per_kg") {
+      autoFreight = roundMoney(unitRate * chargedWeight);
+    } else if (rateType === "Per Package") {
+      autoFreight = roundMoney(unitRate * packagesCount);
+    } else {
+      autoFreight = roundMoney(unitRate);
+    }
+    const freightStr = autoFreight > 0 ? autoFreight.toFixed(2) : autoFreight === 0 && unitRate === 0 ? "" : "0.00";
+    setForm((previous) => (String(previous.freight) === freightStr ? previous : { ...previous, freight: freightStr }));
+  }, [form.rate, form.rateType, form.freightManuallyEdited, chargedWeight, packagesCount]);
+
+  useEffect(() => {
+    if (!rateLookupReady || form.freightManuallyEdited) return;
+    if (form.rateSource === "auto" && Number(form.rate) > 0) return;
     if (!String(form.bookingBranch || "").trim() || !String(form.deliveryBranch || "").trim()) {
       setRateBadge("");
       return;
@@ -516,14 +879,17 @@ export default function NewBookingPage() {
       setRateBadge("missing");
       return;
     }
-    const nextFreight = calculateFreightFromRate(match.rate, chargedWeight, packagesCount);
-    setForm((previous) => (
-      String(previous.freight) === nextFreight.toFixed(2) ? previous : { ...previous, freight: nextFreight.toFixed(2) }
-    ));
+    setForm((previous) => ({
+      ...previous,
+      rate: String(match.rate.rate ?? ""),
+      rateType: match.rate.rateType || "Per Kg",
+      rateSource: "auto",
+      freightManuallyEdited: false,
+    }));
     setRateBadge(match.source === "customer" ? "auto-customer" : "auto-general");
   }, [
     rateLookupReady,
-    manualFreightOverride,
+    form.freightManuallyEdited,
     form.consignorName,
     form.consignorMobile,
     form.bookingBranch,
@@ -532,24 +898,166 @@ export default function NewBookingPage() {
     packagesCount,
     customers,
     branches,
+    form.rate,
+    form.rateSource,
   ]);
 
   const toPayBuiltyCharge = form.paymentType === "to_pay" ? 100 : 0;
   const builtyCharge = compute("builtyCharge") || 150;
-  const displayTotal = (
-    compute("freight") +
-    compute("hamali") +
-    compute("doorDelivery") +
-    compute("localCartageCharges") +
-    compute("selfBuiltyCharge") +
-    compute("otherCharges") +
-    compute("gstOnFreight") +
-    builtyCharge +
-    toPayBuiltyCharge
-  );
-  const totalStr = displayTotal > 0 ? displayTotal.toFixed(2) : "";
+  const freightTotal = compute("freight");
+  const codAmountNum = Number(form.codAmount) || 0;
+  const codHandlingFee = codAmountNum > 0 ? COD_HANDLING_FEE : 0;
 
-  const handleSubmit = (e) => {
+  const chargesSubtotal = useMemo(() => (
+    freightTotal
+    + compute("hamali")
+    + compute("doorDelivery")
+    + compute("localCartageCharges")
+    + codHandlingFee
+    + builtyCharge
+    + compute("otherCharges")
+    + toPayBuiltyCharge
+  ), [
+    freightTotal,
+    form.hamali,
+    form.doorDelivery,
+    form.localCartageCharges,
+    codHandlingFee,
+    builtyCharge,
+    form.otherCharges,
+    toPayBuiltyCharge,
+  ]);
+
+  const gstRatePercent = Number(form.gstRate ?? 5);
+
+  const gstAmount = useMemo(() => (
+    form.applyGst
+      ? roundMoney((chargesSubtotal * gstRatePercent) / 100)
+      : 0
+  ), [form.applyGst, chargesSubtotal, gstRatePercent]);
+
+  useEffect(() => {
+    const gstStr = gstAmount > 0 ? gstAmount.toFixed(2) : "";
+    setForm((previous) => (String(previous.gstOnFreight) === gstStr ? previous : { ...previous, gstOnFreight: gstStr }));
+  }, [gstAmount]);
+
+  const displayTotal = chargesSubtotal + compute("selfBuiltyCharge") + gstAmount;
+  const grandTotal = displayTotal;
+  const totalStr = grandTotal > 0 ? grandTotal.toFixed(2) : "";
+
+  const otherChargesTotal = useMemo(() => (
+    compute("hamali")
+    + compute("doorDelivery")
+    + compute("localCartageCharges")
+    + compute("selfBuiltyCharge")
+    + compute("otherCharges")
+    + builtyCharge
+    + toPayBuiltyCharge
+  ), [
+    form.hamali,
+    form.doorDelivery,
+    form.localCartageCharges,
+    form.selfBuiltyCharge,
+    form.otherCharges,
+    builtyCharge,
+    toPayBuiltyCharge,
+  ]);
+
+  const rateTypeLabel = useMemo(() => {
+    const type = form.rateType || "Per Kg";
+    if (type === "Per Package") return "₹/package";
+    if (type === "Fixed") return "fixed";
+    return "₹/kg";
+  }, [form.rateType]);
+
+  const freightRateHint = useMemo(() => {
+    const unitRate = Number(form.rate) || 0;
+    const type = form.rateType || "Per Kg";
+    if (type === "Per Kg" || type === "per_kg") {
+      const weightLabel = chargedWeight > 0 ? chargedWeight.toFixed(2) : "0";
+      return `₹${unitRate}/kg × ${weightLabel} kg`;
+    }
+    if (type === "Per Package") {
+      return `₹${unitRate}/pkg × ${packagesCount} pkg`;
+    }
+    return `₹${unitRate} fixed`;
+  }, [form.rate, form.rateType, chargedWeight, packagesCount]);
+
+  const buildBookingPayload = (existingStatus) => ({
+    lrCode: form.lrCode,
+    status: existingStatus || "Booked",
+    date: form.bookingDate,
+    time: form.bookingTime,
+    paymentType: form.paymentType,
+    grandTotal: displayTotal,
+    consignor: {
+      name: form.consignorName,
+      mobile: form.consignorMobile,
+      gst: form.consignorGst,
+      pincode: form.consignorPincode,
+      city: form.consignorCity,
+      state: form.consignorState,
+      address: form.consignorAddress,
+    },
+    consignee: {
+      name: form.consigneeName,
+      mobile: form.consigneeMobile,
+      gst: form.consigneeGst,
+      pincode: form.consigneePincode,
+      city: form.consigneeCity,
+      state: form.consigneeState,
+      address: form.consigneeAddress,
+    },
+    route: {
+      bookingBranch: form.bookingBranch,
+      deliveryBranch: form.deliveryBranch,
+      toStation: form.toStation,
+      deliveryAt: form.deliveryAt,
+    },
+    unitRate: Number(form.rate) || 0,
+    rateSource: form.rateSource,
+    rateType: form.rateType,
+    goods: {
+      articles: form.articles,
+      packageType: form.packageType,
+      packages: form.noOfPackages,
+      privateMark: form.privateMark,
+      description: form.goodsDescription,
+      invoiceNumber: form.invoiceNumber,
+      ewayBillNumber: form.ewayBillNumber,
+      riskType: form.riskType,
+      actualWeight,
+      chargedWeight,
+      declaredValue: form.declaredValue,
+      codAmount: Number(form.codAmount) || 0,
+    },
+    dimensions: {
+      length: form.dimensionLength,
+      width: form.dimensionWidth,
+      height: form.dimensionHeight,
+      unit: form.dimensionUnit,
+      pieces: form.dimensionPieces,
+      cubicFeet,
+      cbm,
+      volumetricWeight,
+    },
+    charges: {
+      freight: compute("freight"),
+      hamali: compute("hamali"),
+      doorDelivery: compute("doorDelivery"),
+      localCartageCharges: compute("localCartageCharges"),
+      selfBuiltyCharge: compute("selfBuiltyCharge"),
+      builtyCharge,
+      toPayBuiltyCharge,
+      otherCharges: compute("otherCharges"),
+      gstOnFreight: gstAmount,
+      codHandlingFee,
+      applyGst: form.applyGst,
+      gstRate: gstRatePercent,
+    },
+  });
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const formEl = e.target;
     const failValidation = (message, fieldName) => {
@@ -604,202 +1112,59 @@ export default function NewBookingPage() {
       return;
     }
 
-    const savedBookings = JSON.parse(window.localStorage.getItem("agc_bookings") || "[]");
-    const existingIndex = savedBookings.findIndex((item) => item.lrNumber === form.lrNumber);
-    if (isEditMode) {
-      if (existingIndex === -1) {
-        window.alert(`Booking ${form.lrNumber} was not found.`);
+    const bookingPayload = buildBookingPayload("Booked");
+    let savedLrNumber = form.lrNumber;
+
+    try {
+      const response = await fetch(
+        isEditMode
+          ? `/api/bookings/${encodeURIComponent(form.lrNumber)}`
+          : "/api/bookings",
+        {
+          method: isEditMode ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bookingPayload),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        window.alert(data.error || "Failed to save booking.");
         return;
       }
-    } else if (existingIndex !== -1) {
-      window.alert(`LR Number ${form.lrNumber} already exists.`);
+
+      savedLrNumber = data.booking?.lrNumber || form.lrNumber;
+      if (!isEditMode) {
+        setForm((previous) => ({ ...previous, lrNumber: savedLrNumber }));
+        window.localStorage.setItem(
+          LR_STORAGE_KEY,
+          normalizeLrNumber(Number(savedLrNumber) + 1),
+        );
+      }
+    } catch {
+      window.alert("Failed to save booking.");
       return;
     }
-
-    const existing = existingIndex === -1 ? null : savedBookings[existingIndex];
-    const nextLr = isEditMode
-      ? null
-      : normalizeLrNumber(Math.max(Number(form.lrNumber) + 1, Number(readNextLrNumber())));
-
-    const booking = {
-      ...(existing || {}),
-      lrNumber: form.lrNumber,
-      status: existing?.status || "Booked",
-      createdAt: existing?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      date: form.bookingDate,
-      time: form.bookingTime,
-      paymentType: form.paymentType,
-      grandTotal: displayTotal,
-      consignor: {
-        name: form.consignorName,
-        mobile: form.consignorMobile,
-        gst: form.consignorGst,
-        pincode: form.consignorPincode,
-        city: form.consignorCity,
-        state: form.consignorState,
-        address: form.consignorAddress,
-      },
-      consignee: {
-        name: form.consigneeName,
-        mobile: form.consigneeMobile,
-        gst: form.consigneeGst,
-        pincode: form.consigneePincode,
-        city: form.consigneeCity,
-        state: form.consigneeState,
-        address: form.consigneeAddress,
-      },
-      route: {
-        bookingBranch: form.bookingBranch,
-        deliveryBranch: form.deliveryBranch,
-        deliveryAt: form.deliveryAt,
-      },
-      goods: {
-        articles: form.articles,
-        packageType: form.packageType,
-        packages: form.noOfPackages,
-        privateMark: form.privateMark,
-        description: form.goodsDescription,
-        invoiceNumber: form.invoiceNumber,
-        ewayBillNumber: form.ewayBillNumber,
-        riskType: form.riskType,
-        actualWeight,
-        chargedWeight,
-        declaredValue: form.declaredValue,
-      },
-      dimensions: {
-        length: form.dimensionLength,
-        width: form.dimensionWidth,
-        height: form.dimensionHeight,
-        unit: form.dimensionUnit,
-        pieces: form.dimensionPieces,
-        cubicFeet,
-        cbm,
-        volumetricWeight,
-      },
-      charges: {
-        freight: compute("freight"),
-        hamali: compute("hamali"),
-        doorDelivery: compute("doorDelivery"),
-        localCartageCharges: compute("localCartageCharges"),
-        selfBuiltyCharge: compute("selfBuiltyCharge"),
-        builtyCharge,
-        toPayBuiltyCharge,
-        otherCharges: compute("otherCharges"),
-        gstOnFreight: compute("gstOnFreight"),
-      },
-    };
-
-    if (isEditMode) {
-      savedBookings[existingIndex] = booking;
-      window.localStorage.setItem("agc_bookings", JSON.stringify(savedBookings));
-    } else {
-      window.localStorage.setItem("agc_bookings", JSON.stringify([...savedBookings, booking]));
-      window.localStorage.setItem(LR_STORAGE_KEY, nextLr);
-    }
-
-    const savedLrNumber = form.lrNumber;
     const navigateToSavedBooking = () => {
       window.location.href = `/bookings/${encodeURIComponent(savedLrNumber)}`;
     };
     window.addEventListener("afterprint", navigateToSavedBooking, { once: true });
     window.print();
   };
-  const handlePrint = () => {
-    const savedBookings = JSON.parse(window.localStorage.getItem("agc_bookings") || "[]");
-    if (!savedBookings.some((booking) => booking.lrNumber === form.lrNumber)) {
+  const handlePrint = async () => {
+    try {
+      const response = await fetch(`/api/bookings/${encodeURIComponent(form.lrNumber)}`);
+      if (!response.ok) {
+        window.alert("Please save the LR before printing.");
+        return;
+      }
+      window.print();
+    } catch {
       window.alert("Please save the LR before printing.");
-      return;
     }
-    window.print();
   };
   const printText = (value, fallback = "-") => value || fallback;
   const paymentLabel = form.paymentType === "to_pay" ? "TO PAY" : form.paymentType === "paid" ? "PAID" : "TBB";
   const currentLrNumber = /^79\d{8}$/.test(form.lrNumber) ? form.lrNumber : String(FIRST_LR_NUMBER);
-
-  const navItems = [
-    {
-      key: "dashboard",
-      label: "Dashboard",
-      href: "/dashboard",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-        </svg>
-      ),
-    },
-    {
-      key: "bookings",
-      label: "Bookings",
-      href: "/bookings",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-      ),
-    },
-    {
-      key: "trips",
-      label: "Trips",
-      href: "/trips",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10 17h4V5H2v12h3M20 17h2v-3.34a4 4 0 00-1.17-2.83L19 9h-5v8h1M7.5 17.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM17.5 17.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-        </svg>
-      ),
-    },
-    {
-      key: "deliveries",
-      label: "Deliveries",
-      href: "/deliveries",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-        </svg>
-      ),
-    },
-    {
-      key: "pod",
-      label: "POD",
-      href: "/pod",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
-    },
-    {
-      key: "customers",
-      label: "Customers",
-      href: "/customers",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-    },
-    {
-      key: "reports",
-      label: "Reports",
-      href: "/reports",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
-    },
-    {
-      key: "settings",
-      label: "Settings",
-      href: "/settings",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      ),
-    },
-  ];
 
   // Compact operator inputs for counter-style booking screen
   const inp = "w-full h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-[14px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
@@ -810,133 +1175,9 @@ export default function NewBookingPage() {
   const sel = inp + " " + chev;
 
   return (
-    <div className="flex min-h-screen w-full bg-gray-50">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`sidebar fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:static lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-        style={{ backgroundColor: NAVY }}
-      >
-        <div className="flex h-16 items-center gap-3 border-b border-white/5 px-5">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ backgroundColor: ORANGE, boxShadow: "0 8px 24px -6px rgba(249,115,22,0.5)" }}
-          >
-            <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 17h4V5H2v12h3" />
-              <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
-              <circle cx="7.5" cy="17.5" r="2.5" />
-              <circle cx="17.5" cy="17.5" r="2.5" />
-            </svg>
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-bold text-white">Manual Transport</span>
-            <span className="text-[11px] font-medium text-white/50">ERP System</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-3 py-5">
-          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/40">
-            Main Menu
-          </p>
-          <ul className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = activeNav === item.key;
-              return (
-                <li key={item.key}>
-                  <a
-                    href={item.href}
-                    onClick={() => {
-                      setActiveNav(item.key);
-                    }}
-                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-                      isActive
-                        ? "text-white"
-                        : "text-white/60 hover:bg-white/5 hover:text-white"
-                    }`}
-                    style={isActive ? { backgroundColor: NAVY_LIGHT } : {}}
-                  >
-                    <span>{item.icon}</span>
-                    <span>{item.label}</span>
-                    {isActive && (
-                      <span
-                        className="ml-auto h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: ORANGE }}
-                      />
-                    )}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="border-t border-white/5 p-4">
-          <div className="flex items-center gap-3 rounded-xl p-3" style={{ backgroundColor: NAVY_LIGHT }}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
-              A
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-sm font-semibold text-white">Admin User</span>
-              <span className="truncate text-[11px] text-white/50">Administrator</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 lg:hidden"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="relative hidden md:block">
-              <input
-                type="search"
-                placeholder="Search bookings, trips, customers..."
-                className="w-72 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm outline-none focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
-              />
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span
-                className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full"
-                style={{ backgroundColor: ORANGE }}
-              />
-            </button>
-            <div className="mx-2 hidden h-6 w-px bg-gray-100 sm:block" />
-            <div className="flex items-center gap-2 rounded-lg p-1 hover:bg-gray-50">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: NAVY }}>
-                A
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="screen-only flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-[1400px]">
+    <AppLayout>
+      <div className="screen-only">
+        <div className="mx-auto w-full max-w-[1400px]">
             <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <div className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-500">
@@ -1042,13 +1283,47 @@ export default function NewBookingPage() {
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
-                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">Date</label>
-                    <input type="date" name="bookingDate" value={form.bookingDate} onChange={handleChange("bookingDate")} className="w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30" />
+                    <label className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      <span>Date</span>
+                      {isBookingToday && (
+                        <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[9px] font-bold normal-case tracking-normal text-green-300">
+                          Today
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="date"
+                      name="bookingDate"
+                      value={form.bookingDate}
+                      onChange={handleChange("bookingDate")}
+                      className="w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30 [color-scheme:dark]"
+                    />
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
-                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">Time</label>
-                    <input type="time" value={form.bookingTime} onChange={handleChange("bookingTime")} className="w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30" />
+                    <label className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      <span>Time</span>
+                      {!isEditMode && !timeIsManual ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/20 px-2 py-0.5 text-[9px] font-bold normal-case tracking-normal text-green-300">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+                          </span>
+                          Live
+                        </span>
+                      ) : timeIsManual ? (
+                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold normal-case tracking-normal text-slate-300">
+                          Manual
+                        </span>
+                      ) : null}
+                    </label>
+                    <input
+                      type="time"
+                      name="bookingTime"
+                      value={form.bookingTime}
+                      onChange={handleBookingTimeChange}
+                      className="w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30 [color-scheme:dark]"
+                    />
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
@@ -1058,7 +1333,7 @@ export default function NewBookingPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="space-y-6">
                 <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
                     <div>
@@ -1069,21 +1344,66 @@ export default function NewBookingPage() {
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="relative sm:col-span-3"><Field label="Name"><input type="text" name="consignorName" placeholder="Consignor name / company" value={form.consignorName} onChange={handleCustomerNameChange("consignor")} onFocus={() => setCustomerSearchRole("consignor")} className={inp} /></Field>{customerMatches("consignor").length > 0 && <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">{customerMatches("consignor").map((customer) => <button key={customer.id} type="button" onClick={() => selectCustomer("consignor", customer)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-orange-50"><span className="font-semibold text-slate-800">{customer.name}</span><span className="text-xs text-slate-500">{customer.mobile}</span></button>)}</div>}{form.consignorName.trim() && customerMatches("consignor").length === 0 && customerSearchRole === "consignor" && <button type="button" onClick={() => saveNewCustomer("consignor")} className="mt-1 text-xs font-semibold text-orange-600 hover:text-orange-700">Save New Customer</button>}</div>
-                    <div className="sm:col-span-2"><Field label="Mobile"><input type="tel" placeholder="Mobile number" value={form.consignorMobile} onChange={handleChange("consignorMobile")} className={inp} /></Field></div>
-                    <Field label="GST"><input type="text" placeholder="GSTIN" value={form.consignorGst} onChange={handleChange("consignorGst")} className={inp} /></Field>
-                    <Field label="Pincode"><input type="text" placeholder="000000" maxLength={6} value={form.consignorPincode} onChange={handleChange("consignorPincode")} className={inp} /></Field>
-                    <Field label="City"><input type="text" placeholder="Auto-fill" readOnly value={form.consignorCity} className={inpRo} /></Field>
-                    <Field label="State"><input type="text" placeholder="Auto-fill" readOnly value={form.consignorState} className={inpRo} /></Field>
-                    <div className="sm:col-span-3"><Field label="Address"><textarea rows="3" placeholder="Full consignor address" value={form.consignorAddress} onChange={handleChange("consignorAddress")} className={`${ta} min-h-[88px]`} /></Field></div>
-                    <div className="sm:col-span-3 flex items-center gap-2">
-                      <button type="button" className="inline-flex h-[42px] items-center gap-2 rounded-lg px-4 text-[13px] font-semibold text-white hover:opacity-90" style={{ backgroundColor: NAVY }}>
-                        Save
+                  <div className="space-y-4">
+                    <Field label="Search party">
+                      <PartySearchSelect
+                        partyType="consignor"
+                        onSelect={(party) => applySavedParty("consignor", party)}
+                        placeholder="Search saved consignor by name, mobile, or GST"
+                        inputClassName={inp}
+                      />
+                    </Field>
+                    <div className="relative">
+                      <Field label="Name">
+                        <input type="text" name="consignorName" placeholder="Consignor name / company" value={form.consignorName} onChange={handleCustomerNameChange("consignor")} onFocus={() => setCustomerSearchRole("consignor")} className={inp} />
+                      </Field>
+                      {customerMatches("consignor").length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                          {customerMatches("consignor").map((customer) => (
+                            <button key={customer.id} type="button" onClick={() => selectCustomer("consignor", customer)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-orange-50">
+                              <span className="font-semibold text-slate-800">{customer.name}</span>
+                              <span className="text-xs text-slate-500">{customer.mobile}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {form.consignorName.trim() && customerMatches("consignor").length === 0 && customerSearchRole === "consignor" && (
+                        <button type="button" onClick={() => saveNewCustomer("consignor")} className="mt-1 text-xs font-semibold text-orange-600 hover:text-orange-700">Save New Customer</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label="Mobile"><input type="tel" placeholder="Mobile number" value={form.consignorMobile} onChange={handleChange("consignorMobile")} className={inp} /></Field>
+                      <Field label="GST"><input type="text" placeholder="GSTIN" value={form.consignorGst} onChange={handleChange("consignorGst")} className={inp} /></Field>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <Field label="Pincode">
+                        <div className="relative">
+                          <input type="text" inputMode="numeric" placeholder="000000" maxLength={6} value={form.consignorPincode} onChange={handlePincodeChange("consignor")} className={inp} />
+                          {pincodeLoading.consignor && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-orange-600 animate-pulse">Looking up…</span>
+                          )}
+                        </div>
+                        {pincodeErrors.consignor && <p className="mt-1 text-[11px] font-medium text-red-600">{pincodeErrors.consignor}</p>}
+                      </Field>
+                      <Field label="City"><input type="text" placeholder="Auto-fill" readOnly value={form.consignorCity} className={inpRo} /></Field>
+                      <Field label="State"><input type="text" placeholder="Auto-fill" readOnly value={form.consignorState} className={inpRo} /></Field>
+                    </div>
+                    <Field label="Address">
+                      <textarea rows="3" placeholder="Full consignor address" value={form.consignorAddress} onChange={handleChange("consignorAddress")} className={`${ta} min-h-[88px]`} />
+                    </Field>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => savePartyToDb("consignor")}
+                        disabled={partySaveState.consignor === "saving"}
+                        className="inline-flex h-[42px] items-center gap-2 rounded-lg px-4 text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        style={{ backgroundColor: NAVY }}
+                      >
+                        {partySaveState.consignor === "saving" ? "Saving…" : "Save as Party"}
                       </button>
-                      <button type="button" className="inline-flex h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 hover:bg-slate-50">
-                        Load
-                      </button>
+                      {partySaveState.consignor === "saved" && (
+                        <span className="text-xs font-semibold text-emerald-600">Party saved</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1098,21 +1418,66 @@ export default function NewBookingPage() {
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="relative sm:col-span-3"><Field label="Name"><input type="text" name="consigneeName" placeholder="Consignee name / company" value={form.consigneeName} onChange={handleCustomerNameChange("consignee")} onFocus={() => setCustomerSearchRole("consignee")} className={inp} /></Field>{customerMatches("consignee").length > 0 && <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">{customerMatches("consignee").map((customer) => <button key={customer.id} type="button" onClick={() => selectCustomer("consignee", customer)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-orange-50"><span className="font-semibold text-slate-800">{customer.name}</span><span className="text-xs text-slate-500">{customer.mobile}</span></button>)}</div>}{form.consigneeName.trim() && customerMatches("consignee").length === 0 && customerSearchRole === "consignee" && <button type="button" onClick={() => saveNewCustomer("consignee")} className="mt-1 text-xs font-semibold text-orange-600 hover:text-orange-700">Save New Customer</button>}</div>
-                    <div className="sm:col-span-3"><Field label="Mobile"><input type="tel" placeholder="Mobile number" value={form.consigneeMobile} onChange={handleChange("consigneeMobile")} className={inp} /></Field></div>
-                    <div className="sm:col-span-2"><Field label="GST"><input type="text" placeholder="GSTIN" value={form.consigneeGst} onChange={handleChange("consigneeGst")} className={inp} /></Field></div>
-                    <Field label="Pincode"><input type="text" placeholder="000000" maxLength={6} value={form.consigneePincode} onChange={handleChange("consigneePincode")} className={inp} /></Field>
-                    <Field label="City"><input type="text" placeholder="Auto-fill" readOnly value={form.consigneeCity} className={inpRo} /></Field>
-                    <div className="sm:col-span-2"><Field label="State"><input type="text" placeholder="Auto-fill" readOnly value={form.consigneeState} className={inpRo} /></Field></div>
-                    <div className="sm:col-span-3"><Field label="Address"><textarea rows="3" placeholder="Full consignee address" value={form.consigneeAddress} onChange={handleChange("consigneeAddress")} className={`${ta} min-h-[88px]`} /></Field></div>
-                    <div className="sm:col-span-3 flex items-center gap-2">
-                      <button type="button" className="inline-flex h-[42px] items-center gap-2 rounded-lg px-4 text-[13px] font-semibold text-white hover:opacity-90" style={{ backgroundColor: NAVY }}>
-                        Save
+                  <div className="space-y-4">
+                    <Field label="Search party">
+                      <PartySearchSelect
+                        partyType="consignee"
+                        onSelect={(party) => applySavedParty("consignee", party)}
+                        placeholder="Search saved consignee by name, mobile, or GST"
+                        inputClassName={inp}
+                      />
+                    </Field>
+                    <div className="relative">
+                      <Field label="Name">
+                        <input type="text" name="consigneeName" placeholder="Consignee name / company" value={form.consigneeName} onChange={handleCustomerNameChange("consignee")} onFocus={() => setCustomerSearchRole("consignee")} className={inp} />
+                      </Field>
+                      {customerMatches("consignee").length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                          {customerMatches("consignee").map((customer) => (
+                            <button key={customer.id} type="button" onClick={() => selectCustomer("consignee", customer)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-orange-50">
+                              <span className="font-semibold text-slate-800">{customer.name}</span>
+                              <span className="text-xs text-slate-500">{customer.mobile}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {form.consigneeName.trim() && customerMatches("consignee").length === 0 && customerSearchRole === "consignee" && (
+                        <button type="button" onClick={() => saveNewCustomer("consignee")} className="mt-1 text-xs font-semibold text-orange-600 hover:text-orange-700">Save New Customer</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label="Mobile"><input type="tel" placeholder="Mobile number" value={form.consigneeMobile} onChange={handleChange("consigneeMobile")} className={inp} /></Field>
+                      <Field label="GST"><input type="text" placeholder="GSTIN" value={form.consigneeGst} onChange={handleChange("consigneeGst")} className={inp} /></Field>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <Field label="Pincode">
+                        <div className="relative">
+                          <input type="text" inputMode="numeric" placeholder="000000" maxLength={6} value={form.consigneePincode} onChange={handlePincodeChange("consignee")} className={inp} />
+                          {pincodeLoading.consignee && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-orange-600 animate-pulse">Looking up…</span>
+                          )}
+                        </div>
+                        {pincodeErrors.consignee && <p className="mt-1 text-[11px] font-medium text-red-600">{pincodeErrors.consignee}</p>}
+                      </Field>
+                      <Field label="City"><input type="text" placeholder="Auto-fill" readOnly value={form.consigneeCity} className={inpRo} /></Field>
+                      <Field label="State"><input type="text" placeholder="Auto-fill" readOnly value={form.consigneeState} className={inpRo} /></Field>
+                    </div>
+                    <Field label="Address">
+                      <textarea rows="3" placeholder="Full consignee address" value={form.consigneeAddress} onChange={handleChange("consigneeAddress")} className={`${ta} min-h-[88px]`} />
+                    </Field>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => savePartyToDb("consignee")}
+                        disabled={partySaveState.consignee === "saving"}
+                        className="inline-flex h-[42px] items-center gap-2 rounded-lg px-4 text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        style={{ backgroundColor: NAVY }}
+                      >
+                        {partySaveState.consignee === "saving" ? "Saving…" : "Save as Party"}
                       </button>
-                      <button type="button" className="inline-flex h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 hover:bg-slate-50">
-                        Load
-                      </button>
+                      {partySaveState.consignee === "saved" && (
+                        <span className="text-xs font-semibold text-emerald-600">Party saved</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1129,11 +1494,78 @@ export default function NewBookingPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[1fr_48px_1fr_48px_1fr]">
-                  <div className="relative"><Field label="Booking Branch"><input type="text" placeholder="Search branch" value={form.bookingBranch} onChange={handleChange("bookingBranch")} onFocus={() => setBranchSearchRole("booking")} className={inp} /></Field>{branchMatches("booking").length > 0 && <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">{branchMatches("booking").map((branch) => <button key={branch.id} type="button" onClick={() => selectBranch("booking", branch)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-orange-50"><span className="font-semibold text-slate-800">{branch.name}</span><span className="text-xs text-slate-500">{branch.code} · {branch.city}</span></button>)}</div>}</div>
+                  <Field label="From">
+                    <div className="relative">
+                      <SearchableSelect
+                        value={form.bookingBranch}
+                        onChange={handleFromChange}
+                        onPincodeDetected={handleRoutePincodeDetected("from")}
+                        options={cityOptions}
+                        placeholder="Type pincode or search city"
+                        allowCustom
+                        inputClassName={`${inp}${routeLoading.from || routeAutoFilled.from ? " pr-10" : ""}`}
+                        name="bookingBranch"
+                      />
+                      {routeLoading.from && (
+                        <span className="pointer-events-none absolute right-3 top-[11px]">
+                          <svg className="h-4 w-4 animate-spin text-orange-500" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        </span>
+                      )}
+                      {!routeLoading.from && routeAutoFilled.from && !routeError.from && (
+                        <span className="pointer-events-none absolute right-3 top-[11px] text-green-500" title="City and state filled">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                    {routeError.from && <p className="mt-1 text-xs text-red-500">{routeError.from}</p>}
+                  </Field>
                   <div className="hidden md:flex md:items-center md:justify-center md:pt-6"><div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-orange-200 bg-orange-50 text-orange-600"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></div></div>
-                  <div className="relative"><Field label="Delivery Branch"><input type="text" name="deliveryBranch" placeholder="Search branch" value={form.deliveryBranch} onChange={handleChange("deliveryBranch")} onFocus={() => setBranchSearchRole("delivery")} className={inp} /></Field>{branchMatches("delivery").length > 0 && <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">{branchMatches("delivery").map((branch) => <button key={branch.id} type="button" onClick={() => selectBranch("delivery", branch)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-orange-50"><span className="font-semibold text-slate-800">{branch.name}</span><span className="text-xs text-slate-500">{branch.code} · {branch.city}</span></button>)}</div>}</div>
+                  <Field label="Destination">
+                    <div className="relative">
+                      <SearchableSelect
+                        value={form.toStation}
+                        onChange={handleDestinationChange}
+                        onPincodeDetected={handleRoutePincodeDetected("to")}
+                        options={destinations}
+                        placeholder="Type pincode or search station"
+                        allowCustom
+                        inputClassName={`${inp}${routeLoading.to || routeAutoFilled.to ? " pr-10" : ""}`}
+                        name="deliveryBranch"
+                      />
+                      {routeLoading.to && (
+                        <span className="pointer-events-none absolute right-3 top-[11px]">
+                          <svg className="h-4 w-4 animate-spin text-orange-500" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        </span>
+                      )}
+                      {!routeLoading.to && routeAutoFilled.to && !routeError.to && (
+                        <span className="pointer-events-none absolute right-3 top-[11px] text-green-500" title="City and state filled">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                    {routeError.to && <p className="mt-1 text-xs text-red-500">{routeError.to}</p>}
+                  </Field>
                   <div className="hidden md:flex md:items-center md:justify-center md:pt-6"><div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-orange-200 bg-orange-50 text-orange-600"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div></div>
-                  <Field label="Delivery At"><input type="text" placeholder="Delivery place / godown / address" value={form.deliveryAt} onChange={handleChange("deliveryAt")} className={inp} /></Field>
+                  <Field label="Delivery At">
+                    <SearchableSelect
+                      value={form.deliveryAt}
+                      onChange={handleDeliveryAtChange}
+                      options={destinations}
+                      placeholder="Select station or type delivery address"
+                      allowCustom
+                      inputClassName={inp}
+                      name="deliveryAt"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Stations from rate master; you can type a custom godown or address.
+                    </p>
+                  </Field>
                 </div>
               </div>
 
@@ -1158,6 +1590,7 @@ export default function NewBookingPage() {
                       {chargedByVolumetricWeight ? "Charged by Volumetric Weight" : "Charged by Actual Weight"}
                     </p>
                   </Field>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 xl:col-span-6">
                   <Field label="Private Mark"><input type="text" placeholder="Marking" value={form.privateMark} onChange={handleChange("privateMark")} className={inp} /></Field>
                   <Field label="Invoice"><input type="text" placeholder="Invoice no." value={form.invoiceNumber} onChange={handleChange("invoiceNumber")} className={inp} /></Field>
                   <Field label="E-Way Bill"><input type="text" placeholder="Optional" value={form.ewayBillNumber} onChange={handleChange("ewayBillNumber")} className={inp} /></Field>
@@ -1169,6 +1602,37 @@ export default function NewBookingPage() {
                     </div>
                   </Field>
                   <Field label="Declared Value"><div className="relative"><span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span><input type="number" min="0" step="0.01" placeholder="0.00" value={form.declaredValue} onChange={handleChange("declaredValue")} className={`${inp} pl-8`} /></div></Field>
+                  <Field
+                    label={(
+                      <span className="flex w-full items-center justify-between gap-2">
+                        <span>COD Amount</span>
+                        {(Number(form.codAmount) || 0) > 0 ? (
+                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-700">
+                            COD
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                            Prepaid
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  >
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        name="codAmount"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={form.codAmount}
+                        onChange={handleChange("codAmount")}
+                        className={`${inp} pl-8`}
+                      />
+                    </div>
+                  </Field>
+                  </div>
                   <div className="xl:col-span-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div className="mb-3 border-b border-slate-200 pb-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Dimensions</p>
@@ -1206,61 +1670,170 @@ export default function NewBookingPage() {
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {[
-                      ['freight', 'Freight'],
-                      ['hamali', 'Hamali'],
-                      ['doorDelivery', 'Door Delivery'],
-                      ['localCartageCharges', 'Local Cartage Charges'],
-                      ['selfBuiltyCharge', 'Self Builty Charge'],
-                      ['builtyCharge', 'Builty Charge'],
-                      ['otherCharges', 'Other Charges'],
-                      ...(form.paymentType === "to_pay" ? [['toPayBuiltyCharge', 'To Pay Builty Charge']] : []),
-                      ['gstOnFreight', 'GST on Freight']
-                    ].map(([k, l]) => {
-                      const isReadonly = k === 'toPayBuiltyCharge';
-                      const inputValue = isReadonly ? toPayBuiltyCharge : (form[k] ?? "");
+                  <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                    <label className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      <span>Unit Rate</span>
+                      {form.rateSource === "auto" ? (
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-700">Auto-filled from rate master</span>
+                      ) : (
+                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Manual entry</span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={form.rate}
+                        onChange={handleRateChange}
+                        className={`${inp} pl-8`}
+                      />
+                    </div>
+                  </div>
 
-                      return (
-                        <div key={k} className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-                          <label className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                            <span>{l}</span>
-                            {k === "freight" && rateBadge === "auto-customer" && (
-                              <>
-                                <span className="rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-700">Auto Rate Applied</span>
-                                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-orange-700">Customer Rate</span>
-                              </>
-                            )}
-                            {k === "freight" && rateBadge === "auto-general" && (
-                              <>
-                                <span className="rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-700">Auto Rate Applied</span>
-                                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700">General Rate</span>
-                              </>
-                            )}
-                            {k === "freight" && rateBadge === "manual" && (
-                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700">Manual Override</span>
-                            )}
-                            {k === "freight" && rateBadge === "missing" && (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">No Rate Found</span>
-                            )}
-                          </label>
-                          <div className="relative">
-                            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
-                            <input
-                              type="number"
-                              name={k}
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={inputValue}
-                              onChange={!isReadonly ? handleChange(k) : undefined}
-                              readOnly={isReadonly}
-                              className={`${inp} pl-8 ${isReadonly ? "cursor-default bg-slate-100 text-slate-600" : ""}`}
-                            />
-                          </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        <span>Freight</span>
+                        {!form.freightManuallyEdited && (
+                          <span className="rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-700">Auto</span>
+                        )}
+                        {form.freightManuallyEdited && (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700">Manual</span>
+                        )}
+                        {rateBadge === "auto-customer" && (
+                          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-orange-700">Customer Rate</span>
+                        )}
+                        {rateBadge === "auto-general" && (
+                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700">General Rate</span>
+                        )}
+                        {rateBadge === "missing" && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">No Rate Found</span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input
+                          type="number"
+                          name="freight"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={form.freight}
+                          onChange={handleChange("freight")}
+                          className={`${inp} pl-8`}
+                        />
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">{freightRateHint}</p>
+                      {form.freightManuallyEdited && (
+                        <button type="button" onClick={handleFreightAutoRecalculate} className="mt-1 text-[11px] font-semibold text-orange-600 hover:text-orange-700">
+                          Recalculate from rate
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Hamali</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="number" name="hamali" min="0" step="0.01" placeholder="0.00" value={form.hamali} onChange={handleChange("hamali")} className={`${inp} pl-8`} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Door Delivery</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="number" name="doorDelivery" min="0" step="0.01" placeholder="0.00" value={form.doorDelivery} onChange={handleChange("doorDelivery")} className={`${inp} pl-8`} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Local Cartage</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="number" name="localCartageCharges" min="0" step="0.01" placeholder="0.00" value={form.localCartageCharges} onChange={handleChange("localCartageCharges")} className={`${inp} pl-8`} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        <span>COD Charge</span>
+                        <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-orange-700">Auto</span>
+                      </label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="text" readOnly value={codHandlingFee > 0 ? codHandlingFee.toFixed(2) : "0.00"} className={`${inpRo} pl-8`} />
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {codAmountNum > 0 ? `Flat ₹${COD_HANDLING_FEE} when COD amount is entered` : "No COD amount on shipment"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Builty Charge</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="number" name="builtyCharge" min="0" step="0.01" placeholder="0.00" value={form.builtyCharge} onChange={handleChange("builtyCharge")} className={`${inp} pl-8`} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Other Charges</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="number" name="otherCharges" min="0" step="0.01" placeholder="0.00" value={form.otherCharges} onChange={handleChange("otherCharges")} className={`${inp} pl-8`} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">To Pay Builty Charge</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
+                        <input type="text" readOnly value={toPayBuiltyCharge.toFixed(2)} className={`${inpRo} pl-8`} />
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {form.paymentType === "to_pay" ? "Applied for To Pay bookings" : "Not applicable for this payment type"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:col-span-2">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Apply GST</label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <select
+                            value={String(form.gstRate ?? 5)}
+                            onChange={(event) => setForm((previous) => ({ ...previous, gstRate: Number(event.target.value) }))}
+                            disabled={!form.applyGst}
+                            className={`${sel} h-9 min-w-[88px] text-[13px] ${!form.applyGst ? "cursor-not-allowed opacity-60" : ""}`}
+                            aria-label="GST rate"
+                          >
+                            {GST_RATE_OPTIONS.map((rate) => (
+                              <option key={rate} value={rate}>{rate}%</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setForm((previous) => ({ ...previous, applyGst: !previous.applyGst }))}
+                            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${form.applyGst ? "bg-orange-500" : "bg-slate-300"}`}
+                            aria-pressed={form.applyGst}
+                          >
+                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${form.applyGst ? "translate-x-6" : "translate-x-1"}`} />
+                          </button>
                         </div>
-                      );
-                    })}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {form.applyGst
+                          ? `GST on charge subtotal (₹${chargesSubtotal.toFixed(2)}) at ${gstRatePercent}%`
+                          : "GST is not applied to this booking"}
+                      </p>
+                      <div className="mt-3 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <span className="text-sm text-slate-600">GST amount</span>
+                        <span className="text-sm font-bold text-slate-900">{money(gstAmount)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1274,13 +1847,55 @@ export default function NewBookingPage() {
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#0B1F33] p-3 text-white">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm text-slate-300">Grand Total</span>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-lg font-semibold text-orange-400">₹</span>
-                        <input type="text" readOnly value={totalStr || "0.00"} className="w-32 bg-transparent text-right text-2xl font-bold text-white outline-none" />
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h3 className="mb-3 text-xs font-semibold tracking-wide text-slate-500">
+                      FREIGHT BREAKDOWN
+                    </h3>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">
+                          Freight
+                          <span className="ml-1 text-xs text-slate-400">
+                            ({freightRateHint})
+                          </span>
+                        </span>
+                        <span className="font-semibold text-slate-800">₹{freightTotal.toFixed(2)}</span>
                       </div>
+
+                      {otherChargesTotal > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-600">Other Charges</span>
+                          <span className="font-semibold text-slate-800">₹{otherChargesTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {form.applyGst && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-600">
+                            GST
+                            <span className="ml-1 text-xs text-slate-400">({gstRatePercent}%)</span>
+                          </span>
+                          <span className="font-semibold text-slate-800">₹{gstAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {codHandlingFee > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-600">
+                            COD Handling
+                            <span className="ml-1 text-xs text-slate-400">(flat)</span>
+                          </span>
+                          <span className="font-semibold text-slate-800">₹{codHandlingFee.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className="my-2 border-t border-dashed border-slate-200" />
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between rounded-lg bg-[#071B34] px-4 py-3 text-white">
+                      <span className="text-sm font-semibold">Grand Total</span>
+                      <span className="text-lg font-bold">₹{grandTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -1310,95 +1925,27 @@ export default function NewBookingPage() {
               </div>
             </form>
           </div>
-        </main>
-
-        <section className="lr-print-sheet" aria-label="Assam Goods Carrier LR print view">
-          <div className="lr-print-paper">
-            <div className="lr-print-header">
-              <div className="lr-brand"><img src="/brand/agc-logo.jpg" alt="Assam Goods Carrier" className="lr-logo-img" /><div><strong>ASSAM GOODS CARRIER</strong><span>SAFE • RELIABLE • ON TIME</span></div></div>
-              <div className="lr-title"><strong>BILTY / LR</strong><span>GOODS CONSIGNMENT NOTE</span></div>
-              <div className="lr-reference"><span>LR NUMBER</span><strong>{currentLrNumber}</strong><Code128Barcode value={currentLrNumber} /></div>
-              <div className="lr-datetime"><span>BOOKING DATE <b>{printText(form.bookingDate)}</b></span><span>BOOKING TIME <b>{printText(form.bookingTime)}</b></span></div>
-            </div>
-
-            <div className="lr-info-row"><span><b>BOOKING BRANCH</b>{printText(form.bookingBranch)}</span><span><b>DELIVERY BRANCH</b>{printText(form.deliveryBranch)}</span><span><b>DELIVERY AT</b>{printText(form.deliveryAt)}</span><strong className={`lr-payment ${form.paymentType}`}>{paymentLabel}</strong></div>
-
-            <div className="lr-party-grid">
-              <div className="lr-section-box"><h3>CONSIGNOR</h3><p><b>Name</b>{printText(form.consignorName)}</p><p><b>Mobile</b>{printText(form.consignorMobile)} <b>GST</b>{printText(form.consignorGst)}</p><p><b>Address</b>{printText(form.consignorAddress)}</p></div>
-              <div className="lr-section-box"><h3>CONSIGNEE</h3><p><b>Name</b>{printText(form.consigneeName)}</p><p><b>Mobile</b>{printText(form.consigneeMobile)} <b>GST</b>{printText(form.consigneeGst)}</p><p><b>Address</b>{printText(form.consigneeAddress)}</p></div>
-            </div>
-
-            <div className="lr-section-box lr-goods-box"><h3>GOODS DETAILS</h3><table><thead><tr><th>Articles</th><th>Package Type</th><th>Pieces</th><th>Private Mark</th><th>Invoice No</th><th>E-Way Bill</th></tr></thead><tbody><tr><td>{printText(form.articles)}</td><td>{printText(form.packageType)}</td><td>{printText(form.noOfPackages)}</td><td>{printText(form.privateMark)}</td><td>{printText(form.invoiceNumber)}</td><td>{printText(form.ewayBillNumber)}</td></tr></tbody></table><div className="lr-goods-meta"><span><b>Risk:</b> {printText(form.riskType).replace("_risk", "")}</span><span><b>Declared Value:</b> ₹{printText(form.declaredValue, "0.00")}</span></div></div>
-
-            <div className="lr-detail-grid">
-              <div className="lr-section-box"><h3>DIMENSIONS &amp; WEIGHT</h3><div className="lr-stat-grid"><span><b>Length</b>{printText(form.dimensionLength, "0")}</span><span><b>Width</b>{printText(form.dimensionWidth, "0")}</span><span><b>Height</b>{printText(form.dimensionHeight, "0")}</span><span><b>Unit</b>{form.dimensionUnit.toUpperCase()}</span><span><b>Pieces</b>{printText(form.dimensionPieces, "1")}</span><span><b>Cubic Feet</b>{cubicFeet.toFixed(2)}</span><span><b>CBM</b>{cbm.toFixed(4)}</span><span><b>Volumetric Wt</b>{volumetricWeight.toFixed(2)} KG</span></div><div className="lr-weight-row"><span><b>Actual Weight</b>{actualWeight.toFixed(2)} KG</span><span><b>Charged Weight (Auto)</b>{chargedWeight.toFixed(2)} KG</span><small>{chargedByVolumetricWeight ? "Charged by Volumetric Weight" : "Charged by Actual Weight"}</small></div></div>
-              <div className="lr-section-box lr-charge-box"><h3>CHARGES BREAKUP</h3><table><tbody><tr><td>Freight</td><td>₹{compute("freight").toFixed(2)}</td><td>Hamali</td><td>₹{compute("hamali").toFixed(2)}</td></tr><tr><td>Door Delivery</td><td>₹{compute("doorDelivery").toFixed(2)}</td><td>Local Cartage Charges</td><td>₹{compute("localCartageCharges").toFixed(2)}</td></tr><tr><td>Self Builty Charge</td><td>₹{compute("selfBuiltyCharge").toFixed(2)}</td><td>Builty Charge (Fixed)</td><td>₹{builtyCharge.toFixed(2)}</td></tr><tr><td>To Pay Extra Charge</td><td>₹{toPayBuiltyCharge.toFixed(2)}</td><td>Other Charges</td><td>₹{compute("otherCharges").toFixed(2)}</td></tr><tr><td>GST on Freight</td><td>₹{compute("gstOnFreight").toFixed(2)}</td><td></td><td></td></tr></tbody></table><div className="lr-grand-total"><span>GRAND TOTAL</span><strong>₹{totalStr || "0.00"}</strong></div></div>
-            </div>
-
-            <div className="lr-signatures"><div>Booking Clerk Signature</div><div>Receiver Signature</div><div>Customer Signature</div></div>
-            <div className="lr-footer">Assam Goods Carrier <span>•</span> Subject to Company Rules.</div>
-          </div>
-        </section>
-        <style jsx global>{`
-          .lr-print-sheet { display: none; }
-          @media print {
-            @page { size: A4 landscape; margin: 8mm; }
-            html, body { background: #fff !important; }
-            .sidebar, header, .sticky, .screen-only { display: none !important; }
-            .lr-print-sheet { display: block !important; width: 100%; color: #0B1F33; font-family: Arial, Helvetica, sans-serif; }
-            .lr-print-paper { width: 100%; height: 194mm; overflow: hidden; border: 0.35mm solid #0B1F33; padding: 3mm; box-sizing: border-box; page-break-inside: avoid; }
-            .lr-print-header { display: grid; grid-template-columns: 1.35fr 1fr 1.15fr 0.9fr; align-items: stretch; border-bottom: 0.35mm solid #0B1F33; }
-            .lr-brand, .lr-title, .lr-reference, .lr-datetime { min-height: 22mm; padding: 2mm; border-right: 0.2mm solid #94a3b8; }
-            .lr-datetime { border-right: 0; display: flex; flex-direction: column; justify-content: center; gap: 2mm; font-size: 6.5pt; }
-            .lr-datetime span, .lr-reference > span { display: flex; flex-direction: column; gap: 0.7mm; color: #64748b; font-size: 5.5pt; font-weight: 700; letter-spacing: 0.4mm; }
-            .lr-datetime b { color: #0B1F33; font-size: 8pt; letter-spacing: 0; }
-            .lr-brand { display: flex; align-items: center; gap: 2mm; }
-            .lr-logo-img { height: 13mm; width: auto; object-fit: contain; }
-            .lr-logo { display: none; }
-            .lr-brand strong { display: block; font-size: 12pt; letter-spacing: 0.3mm; }
-            .lr-brand span, .lr-title span { display: block; margin-top: 1mm; color: #64748b; font-size: 6pt; font-weight: 700; letter-spacing: 0.8mm; }
-            .lr-title { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-            .lr-title strong { font-size: 16pt; letter-spacing: 1.1mm; }
-            .lr-reference strong { display: block; margin: 1mm 0; color: #F97316; font-size: 12pt; letter-spacing: 0.7mm; }
-            .barcode-box { display: flex; width: 180px; flex-direction: column; align-items: flex-start; gap: 0.5mm; overflow: visible; }
-            .barcode-box svg { display: block; width: 180px; height: 42px; max-width: none; overflow: visible; background: #fff; }
-            .barcode-number { color: #0B1F33; font-size: 5.5pt; letter-spacing: 0.7mm; line-height: 1; }
-            .lr-info-row { display: grid; grid-template-columns: 1fr 1fr 1.35fr 0.55fr; border: 0.25mm solid #0B1F33; border-top: 0; }
-            .lr-info-row > span, .lr-info-row > strong { min-height: 11mm; padding: 1.5mm 2mm; border-right: 0.2mm solid #94a3b8; font-size: 8pt; }
-            .lr-info-row > strong { display: flex; align-items: center; justify-content: center; border-right: 0; font-size: 8pt; }
-            .lr-info-row span b { display: block; margin-bottom: 1mm; color: #64748b; font-size: 5.5pt; letter-spacing: 0.5mm; }
-            .lr-payment { border: 0.4mm solid #F97316; color: #F97316; }
-            .lr-payment.paid { border-color: #15803d; color: #15803d; }
-            .lr-payment.tbb { border-color: #2563eb; color: #2563eb; }
-            .lr-party-grid, .lr-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; margin-top: 2mm; }
-            .lr-section-box { border: 0.25mm solid #0B1F33; overflow: hidden; }
-            .lr-section-box h3 { margin: 0; padding: 1.2mm 2mm; background: #0B1F33; color: #fff; font-size: 7pt; letter-spacing: 0.6mm; }
-            .lr-section-box p { display: grid; grid-template-columns: 18mm 1fr; gap: 2mm; margin: 0; min-height: 6mm; padding: 1mm 2mm; border-bottom: 0.2mm solid #cbd5e1; font-size: 7pt; }
-            .lr-section-box p:last-child { border-bottom: 0; }
-            .lr-section-box p b { color: #64748b; font-size: 6pt; text-transform: uppercase; }
-            .lr-goods-box { margin-top: 2mm; }
-            .lr-goods-box table, .lr-charge-box table { width: 100%; border-collapse: collapse; font-size: 7pt; }
-            .lr-goods-box th, .lr-goods-box td, .lr-charge-box td { border: 0.2mm solid #cbd5e1; padding: 1.3mm 1.5mm; text-align: left; }
-            .lr-goods-box th { background: #e2e8f0; color: #0B1F33; font-size: 6pt; letter-spacing: 0.3mm; }
-            .lr-goods-box td:not(:first-child), .lr-goods-box th:not(:first-child) { text-align: center; }
-            .lr-goods-meta { display: flex; justify-content: flex-end; gap: 10mm; padding: 1.3mm 2mm; font-size: 7pt; }
-            .lr-detail-grid { grid-template-columns: 1.25fr 1fr; }
-            .lr-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
-            .lr-stat-grid span { display: flex; flex-direction: column; gap: 1mm; min-height: 9mm; padding: 1.5mm 2mm; border-right: 0.2mm solid #cbd5e1; border-bottom: 0.2mm solid #cbd5e1; font-size: 7pt; }
-            .lr-stat-grid b, .lr-weight-row b { color: #64748b; font-size: 5.5pt; text-transform: uppercase; }
-            .lr-weight-row { display: grid; grid-template-columns: 1fr 1fr; position: relative; padding: 1.5mm 2mm; font-size: 8pt; }
-            .lr-weight-row span { display: flex; flex-direction: column; gap: 1mm; }
-            .lr-weight-row small { position: absolute; right: 2mm; bottom: 1mm; color: #F97316; font-size: 5.5pt; font-weight: 700; }
-            .lr-charge-box td:nth-child(even) { width: 18mm; text-align: right; font-weight: 700; }
-            .lr-grand-total { display: flex; align-items: center; justify-content: space-between; margin: 2mm; padding: 2mm 3mm; background: #F97316; color: #fff; }
-            .lr-grand-total span { font-size: 9pt; font-weight: 800; letter-spacing: 0.8mm; }
-            .lr-grand-total strong { font-size: 15pt; }
-            .lr-signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14mm; margin-top: 5mm; padding: 0 3mm; }
-            .lr-signatures div { padding-top: 7mm; border-top: 0.25mm solid #64748b; text-align: center; color: #64748b; font-size: 6.5pt; }
-            .lr-footer { margin-top: 3mm; border-top: 0.2mm solid #cbd5e1; padding-top: 1.5mm; text-align: center; color: #64748b; font-size: 6pt; }
-          }
-        `}</style>
       </div>
-    </div>
+
+      <div className="lr-print-section">
+        <LrPrintLayout
+          lrNumber={currentLrNumber}
+          form={form}
+          paymentLabel={paymentLabel}
+          actualWeight={actualWeight}
+          chargedWeight={chargedWeight}
+          volumetricWeight={volumetricWeight}
+          cubicFeet={cubicFeet}
+          cbm={cbm}
+          chargedByVolumetricWeight={chargedByVolumetricWeight}
+          builtyCharge={builtyCharge}
+          toPayBuiltyCharge={toPayBuiltyCharge}
+          codHandlingFee={codHandlingFee}
+          grandTotal={displayTotal}
+          compute={compute}
+          printText={printText}
+        />
+      </div>
+    </AppLayout>
   );
 }

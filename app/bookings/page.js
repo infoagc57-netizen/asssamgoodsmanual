@@ -24,7 +24,25 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
-    try { setBookings(JSON.parse(window.localStorage.getItem("agc_bookings") || "[]")); } catch { setBookings([]); }
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/bookings");
+        const data = await response.json();
+        if (!cancelled) {
+          if (!response.ok) {
+            setBookings([]);
+            return;
+          }
+          setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+        }
+      } catch {
+        if (!cancelled) setBookings([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredBookings = useMemo(() => bookings.filter((booking) => {
@@ -44,7 +62,7 @@ export default function BookingsPage() {
         <div className="flex gap-2"><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-[42px] min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm" /><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-[42px] min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm" /></div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-[42px] rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm"><option value="">All Status</option><option value="Booked">Booked</option><option value="Loaded">Loaded</option><option value="In Transit">In Transit</option><option value="Arrived at Branch">Arrived at Branch</option></select>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-100"><thead className="bg-gray-50/70"><tr>{["LR No", "Date", "Consignor", "Consignee", "Branch", "Amount", "Payment", "Status", "Action"].map((heading) => <th key={heading} className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-50">{filteredBookings.length ? filteredBookings.map((booking) => <tr key={booking.lrNumber} className="hover:bg-orange-50/30"><td className="px-5 py-4 text-sm font-bold" style={{ color: NAVY }}>{booking.lrNumber}</td><td className="px-5 py-4 text-sm">{booking.date || "-"}</td><td className="px-5 py-4 text-sm">{booking.consignor?.name || "-"}</td><td className="px-5 py-4 text-sm">{booking.consignee?.name || "-"}</td><td className="px-5 py-4 text-sm">{booking.route?.bookingBranch || "-"}</td><td className="px-5 py-4 text-sm font-semibold">₹{Number(booking.grandTotal || 0).toFixed(2)}</td><td className="px-5 py-4 text-xs font-bold uppercase">{booking.paymentType === "to_pay" ? "To Pay" : booking.paymentType === "paid" ? "Paid" : "TBB"}</td><td className="px-5 py-4"><span className={statusTone(booking.status)}>{booking.status || "Booked"}</span></td><td className="whitespace-nowrap px-5 py-4 text-xs font-semibold"><a href={`/bookings/${encodeURIComponent(booking.lrNumber)}`} className="mr-3" style={{ color: NAVY }}>View</a><a href={`/bookings/new?edit=true&lr=${encodeURIComponent(booking.lrNumber)}`} className="text-gray-500">Edit</a></td></tr>) : <tr><td colSpan="9" className="px-5 py-20 text-center text-sm font-semibold" style={{ color: NAVY }}>No bookings yet.</td></tr>}</tbody></table></div></div>
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-100"><thead className="bg-gray-50/70"><tr>{["LR No", "Date", "Consignor", "Consignee", "Branch", "Amount", "Payment", "Status", "Action"].map((heading) => <th key={heading} className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-50">{filteredBookings.length ? filteredBookings.map((booking) => <tr key={booking.lrNumber} className="hover:bg-orange-50/30"><td className="px-5 py-4 text-sm font-bold" style={{ color: NAVY }}>{booking.lrNumber}</td><td className="px-5 py-4 text-sm">{booking.date || "-"}</td><td className="px-5 py-4 text-sm">{booking.consignor?.name || "-"}</td><td className="px-5 py-4 text-sm">{booking.consignee?.name || "-"}</td><td className="px-5 py-4 text-sm">{booking.route?.bookingBranch || "-"}</td><td className="px-5 py-4 text-sm font-semibold">₹{Number(booking.grandTotal || 0).toFixed(2)}</td><td className="px-5 py-4 text-xs font-bold uppercase">{booking.paymentType === "to_pay" ? "To Pay" : booking.paymentType === "paid" ? "Paid" : "TBB"}</td><td className="px-5 py-4"><span className={statusTone(booking.status)}>{booking.status || "Booked"}</span></td><td className="whitespace-nowrap px-5 py-4 text-xs font-semibold"><a href={`/bookings/${encodeURIComponent(booking.lrNumber)}`} className="mr-3" style={{ color: NAVY }}>View</a><a href={`/bookings/${encodeURIComponent(booking.lrNumber)}/sticker`} target="_blank" rel="noopener noreferrer" className="mr-3" style={{ color: ORANGE }}>Stickers</a><a href={`/bookings/new?edit=true&lr=${encodeURIComponent(booking.lrNumber)}`} className="text-gray-500">Edit</a></td></tr>) : <tr><td colSpan="9" className="px-5 py-20 text-center text-sm font-semibold" style={{ color: NAVY }}>No bookings yet.</td></tr>}</tbody></table></div></div>
     </AppLayout>
   );
 }

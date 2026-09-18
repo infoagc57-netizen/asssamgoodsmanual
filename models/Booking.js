@@ -1,79 +1,70 @@
 import mongoose from "mongoose";
-import schemaOptions from "@/lib/schemaOptions";
-import { BOOKING_STATUS, PAYMENT_STATUS } from "@/lib/constants";
+
+const TrackingHistorySchema = new mongoose.Schema(
+  {
+    status: String,
+    timestamp: Date,
+    branch: String,
+    note: String,
+    event: String,
+    location: String,
+    remark: String,
+    id: String,
+    createdAt: String,
+  },
+  { _id: false },
+);
 
 const BookingSchema = new mongoose.Schema(
   {
-    booking_number: {
+    lrNumber: {
       type: String,
       required: true,
       unique: true,
       index: true,
     },
-    customer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
-      required: [true, "Customer is required"],
-    },
+    lrCode: String,
     status: {
       type: String,
-      enum: Object.values(BOOKING_STATUS),
-      default: BOOKING_STATUS.DRAFT,
+      default: "Booked",
       index: true,
     },
-    payment_status: {
-      type: String,
-      enum: Object.values(PAYMENT_STATUS),
-      default: PAYMENT_STATUS.UNPAID,
-    },
-    booking_date: {
-      type: Date,
-      default: Date.now,
-    },
-    expected_delivery_date: {
-      type: Date,
-    },
-    origin_address: {
-      type: String,
-      required: [true, "Origin address is required"],
-    },
-    origin_city: String,
-    origin_state: String,
-    origin_postal_code: String,
-    origin_country: String,
-    destination_address: {
-      type: String,
-      required: [true, "Destination address is required"],
-    },
-    destination_city: String,
-    destination_state: String,
-    destination_postal_code: String,
-    destination_country: String,
-    weight: {
-      type: Number,
-      min: [0, "Weight cannot be negative"],
-    },
-    volume: {
-      type: Number,
-      min: [0, "Volume cannot be negative"],
-    },
-    total_amount: {
+    date: String,
+    time: String,
+    paymentType: String,
+    grandTotal: {
       type: Number,
       default: 0,
-      min: [0, "Amount cannot be negative"],
     },
-    notes: String,
-    created_by: {
+    consignor: mongoose.Schema.Types.Mixed,
+    consignee: mongoose.Schema.Types.Mixed,
+    route: mongoose.Schema.Types.Mixed,
+    unitRate: Number,
+    rateSource: String,
+    rateType: String,
+    goods: mongoose.Schema.Types.Mixed,
+    dimensions: mongoose.Schema.Types.Mixed,
+    charges: mongoose.Schema.Types.Mixed,
+    bookingBranchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+    },
+    createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    trackingHistory: {
+      type: [TrackingHistorySchema],
+      default: [],
+    },
   },
-  schemaOptions
+  {
+    timestamps: true,
+  },
 );
 
-BookingSchema.index({ booking_number: 1 }, { unique: true });
-BookingSchema.index({ customer: 1, status: 1 });
-BookingSchema.index({ booking_date: -1 });
+BookingSchema.index({ createdAt: -1 });
+BookingSchema.index({ "route.bookingBranch": 1 });
 
 const Booking = mongoose.models.Booking || mongoose.model("Booking", BookingSchema);
 

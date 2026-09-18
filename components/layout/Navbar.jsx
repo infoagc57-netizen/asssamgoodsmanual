@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Bell,
@@ -80,7 +81,7 @@ export default function Navbar({ onMenuToggle, collapsed = false }) {
                     <p className="text-xs text-slate-500">admin@agcmanual.com</p>
                   </div>
                   <div className="py-1">
-                    <a href="/profile" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">Profile Settings</a>
+                    <Link href="/settings" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">Profile Settings</Link>
                     <a href="/settings" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">System Settings</a>
                   </div>
                   <div className="border-t border-[#E5E7EB] py-1">

@@ -1,5 +1,3 @@
-import SessionGate from "../../components/layout/SessionGate";
-
-export default function ProtectedLayout({ children }) {
-  return <SessionGate>{children}</SessionGate>;
+export default function ReportsLayout({ children }) {
+  return children;
 }

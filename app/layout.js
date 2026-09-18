@@ -1,4 +1,5 @@
 import "./globals.css";
+import AuthSessionProvider from "@/components/providers/AuthSessionProvider";
 
 export const metadata = {
   title: "AGC Manual ERP",
@@ -8,7 +9,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthSessionProvider>{children}</AuthSessionProvider>
+      </body>
     </html>
   );
 }

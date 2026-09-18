@@ -17,7 +17,7 @@ const UserSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
       match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+        /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
         "Please provide a valid email address",
       ],
     },
@@ -35,6 +35,21 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["active", "inactive", "suspended"],
       default: "active",
+    },
+    passwordHash: {
+      type: String,
+      select: false,
+    },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+    },
+    failedLoginCount: {
+      type: Number,
+      default: 0,
+    },
+    lastLoginAt: {
+      type: Date,
     },
     last_login: {
       type: Date,

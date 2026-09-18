@@ -78,7 +78,7 @@ export default function Sidebar({ mobileOpen = false, collapsed = false, onClose
     )}
     <aside
       className={clsx(
-        "fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-white/10 bg-[#071B34] text-white duration-300",
+        "sidebar fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-white/10 bg-[#071B34] text-white duration-300",
         "transition-[width,transform]",
         collapsed ? "w-60 lg:w-[72px]" : "w-60",
         mobileOpen

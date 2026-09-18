@@ -6,16 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:mongo": "node scripts/test-mongo.js",
+    "seed:admin": "node scripts/seed-admin.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "jsbarcode": "^3.12.3",
     "lucide-react": "^1.45.0",
+    "mongoose": "^9.10.1",
     "next": "^15.0.0",
+    "next-auth": "^5.0.0-beta.32",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
+    "dotenv": "^18.0.0",
     "eslint": "^9.13.0",
     "eslint-config-next": "^15.0.0",
     "postcss": "^8.4.47",

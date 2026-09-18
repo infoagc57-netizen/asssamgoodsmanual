@@ -76,9 +76,1151 @@ body {
   }
 }
 
+.lr-print-section,
+.lr-print-sheet {
+  display: none;
+}
+
+/* Thermal sticker preview (/bookings/[id]/sticker) */
+.sticker-print-root {
+  min-height: 100vh;
+  background: #f1f5f9;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #0f172a;
+}
+
+.sticker-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.sticker-toolbar-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sticker-page {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px 48px;
+}
+
+.sticker-page .lr-sticker {
+  width: 102mm;
+  height: 63.5mm;
+  padding: 4mm;
+  border: 1.5px solid #000;
+  border-radius: 2mm;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.sticker-page .lr-sticker-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1mm;
+  padding-bottom: 1mm;
+  border-bottom: 1px solid #000;
+}
+
+.sticker-page .lr-sticker-brand-block {
+  display: flex;
+  align-items: center;
+  gap: 1.5mm;
+  min-width: 0;
+  flex: 1;
+}
+
+.sticker-page .lr-sticker-logo {
+  width: 6mm;
+  height: 6mm;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.sticker-page .lr-sticker-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.05;
+}
+
+.sticker-page .lr-sticker-brand {
+  font-size: 8.5pt;
+  font-weight: 700;
+}
+
+.sticker-page .lr-sticker-sub {
+  color: #666;
+  font-size: 6pt;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sticker-page .lr-sticker-box-badge {
+  flex-shrink: 0;
+  padding: 0.8mm 1.5mm;
+  border: 1.5px solid #000;
+  font-size: 6pt;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sticker-page .lr-sticker-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1mm 0;
+}
+
+.sticker-page .lr-sticker-ref-label {
+  font-size: 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #333;
+}
+
+.sticker-page .lr-sticker-ref-value {
+  margin-top: 0.5mm;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 17pt;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.sticker-page .lr-sticker-footer {
+  padding-top: 1mm;
+  border-top: 1px solid #000;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.sticker-page .lr-sticker-addr {
+  font-size: 5.5pt;
+  color: #222;
+}
+
+.sticker-page .lr-sticker-mobile {
+  margin-top: 0.5mm;
+  font-size: 6pt;
+  font-weight: 700;
+}
+
 @media print {
-  aside,
-  header.agc-navbar {
+  @page lr-sheet {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  @page sticker-portrait {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  @page sticker-thermal {
+    size: 102mm 63.5mm;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html.printing-stickers,
+  body.printing-stickers {
+    width: 102mm !important;
+    max-width: 102mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page: sticker-thermal;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .lr-print-section,
+  .lr-print-section * {
+    visibility: visible;
+  }
+
+  .sticker-print-root,
+  .sticker-print-root * {
+    visibility: visible;
+  }
+
+  .lr-print-section {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .lr-print-sheet,
+  .lr-print-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .lr-print-sheet {
+    color: #000;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+  }
+
+  .lr-print-page {
+    page: lr-sheet;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: 194mm !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-sizing: border-box;
+  }
+
+  .lr-print-container:not(:has(+ .lr-sticker-sheet)) .lr-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .lr-print-container:has(+ .lr-sticker-sheet) .lr-print-page:last-child {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .lr-copy {
+    display: block !important;
+    position: relative !important;
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: 194mm !important;
+    overflow: hidden !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 1px solid #071b34;
+    background: #fff;
+  }
+
+  .lr-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 0;
+    transform: translate(-50%, -50%) rotate(-32deg);
+    color: rgba(7, 27, 52, 0.1);
+    font-size: 64pt;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .lr-copy-inner {
+    position: relative;
+    z-index: 1;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 3mm 4mm !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    font-size: 10pt;
+    line-height: 1.2;
+  }
+
+  .lr-main-duo {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 8px;
+    align-items: stretch;
+    margin: 4px 0;
+  }
+
+  .lr-main-left,
+  .lr-main-right {
+    min-width: 0;
+  }
+
+  .lr-main-left {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .lr-main-left .lr-table {
+    margin: 0 0 4px;
+  }
+
+  .lr-main-left .lr-table:last-of-type {
+    margin-bottom: 0;
+  }
+
+  .lr-main-right .lr-table {
+    margin: 0;
+  }
+
+  .lr-main-left .lr-charge-note {
+    margin-top: 3px;
+    margin-bottom: 0;
+  }
+
+  .lr-tc-fill {
+    flex: 1;
+    margin-top: 4px;
+    padding: 4px 6px;
+    border: 1px solid #071b34;
+    min-height: 0;
+  }
+
+  .lr-tc-fill .lr-tc-title {
+    margin-bottom: 3px;
+    color: #071b34;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-tc-fill .lr-tc-list {
+    margin: 0;
+    padding-left: 1.1em;
+    color: #333;
+    font-size: 7pt;
+    line-height: 1.25;
+  }
+
+  .lr-tc-fill .lr-tc-list li {
+    margin: 0;
+    padding: 0;
+  }
+
+  .lr-tc-fill .lr-tc-list li + li {
+    margin-top: 2px;
+  }
+
+  .lr-footer-duo {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 8px;
+    align-items: end;
+  }
+
+  .lr-cut-line {
     display: none !important;
+  }
+
+  aside.sidebar,
+  .sidebar,
+  header.agc-navbar,
+  nav,
+  .booking-details-screen,
+  .screen-only,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  .lr-h-company {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    border-bottom: 2px solid #071b34;
+  }
+
+  .lr-h-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .lr-h-brand-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .lr-logo-img {
+    width: 18mm;
+    height: 18mm;
+    object-fit: contain;
+  }
+
+  .lr-company-name {
+    display: block;
+    color: #000;
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1.15;
+  }
+
+  .lr-tagline {
+    display: block;
+    margin-top: 2px;
+    color: #c8102e;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .lr-h-details {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    text-align: right !important;
+    max-width: 155mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-weight: 400;
+  }
+
+  .lr-h-details p {
+    white-space: nowrap !important;
+    font-size: 7pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: right !important;
+    overflow: visible !important;
+  }
+
+  .lr-h-title,
+  .lr-title-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 4px 0;
+    padding: 4px 2px;
+    border-bottom: 1px solid #071b34;
+  }
+
+  .lr-h-title-left h1 {
+    margin: 4px 0 0;
+    color: #071b34;
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+
+  .lr-copy-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    margin: 0;
+    color: #fff;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .lr-badge-consignor {
+    background: #071b34;
+  }
+
+  .lr-badge-consignee {
+    background: #c2410c;
+  }
+
+  .lr-badge-driver {
+    background: #333;
+  }
+
+  .lr-badge-office {
+    background: #555;
+    color: #fff;
+  }
+
+  .lr-payment-pill {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 3px 8px;
+    border: 1px solid #000;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+
+  .lr-h-title-right {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .lr-lr-block strong {
+    display: block;
+    color: #000;
+    font-size: 14pt;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+
+  .lr-label {
+    color: #333;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-barcode-box svg {
+    display: block;
+    width: 52mm;
+    max-width: 100%;
+    height: 12mm;
+  }
+
+  .lr-datetime-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10pt;
+  }
+
+  .lr-datetime-block b {
+    display: block;
+    color: #333;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-route-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin: 6px 0;
+    border: 1px solid #071b34;
+  }
+
+  .lr-route-row span {
+    padding: 6px 8px;
+    border-right: 1px solid #071b34;
+    font-size: 10pt;
+    line-height: 1.25;
+  }
+
+  .lr-route-row span:last-child {
+    border-right: 0;
+  }
+
+  .lr-route-row b {
+    display: block;
+    margin-bottom: 3px;
+    color: #071b34;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-parties {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 4px 0;
+    min-height: 0;
+  }
+
+  .lr-party {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #071b34;
+  }
+
+  .lr-party h2 {
+    margin: 0;
+    padding: 4px 8px;
+    background: #071b34;
+    color: #fff;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .lr-party p {
+    display: grid;
+    grid-template-columns: 16mm 1fr;
+    gap: 6px;
+    margin: 0;
+    padding: 4px 8px;
+    border-bottom: 1px solid #ccc;
+    font-size: 10pt;
+    line-height: 1.25;
+  }
+
+  .lr-party p:last-child {
+    border-bottom: 0;
+  }
+
+  .lr-party-address {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .lr-party b {
+    color: #333;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-table,
+  .lr-goods-table,
+  .lr-weight-table,
+  .lr-charges-table {
+    width: 100%;
+    margin: 4px 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 10pt;
+  }
+
+  .lr-table th,
+  .lr-table td {
+    padding: 3px 4px;
+    border: 1px solid #071b34;
+    overflow: hidden;
+    text-align: center;
+    vertical-align: middle;
+    word-wrap: break-word;
+    line-height: 1.2;
+    font-size: 10pt;
+  }
+
+  .lr-table th {
+    background: #f0f0f0;
+    color: #071b34;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-goods-table td:first-child,
+  .lr-goods-table th:first-child {
+    text-align: left;
+  }
+
+  .lr-charge-note {
+    margin: 4px 0 0;
+    color: #333;
+    font-size: 10pt;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: right;
+  }
+
+  .lr-grand-cell {
+    font-size: 12pt;
+    font-weight: 700;
+  }
+
+  .lr-fare-section {
+    margin: 0;
+    border: 1px solid #071b34;
+    overflow: hidden;
+  }
+
+  .lr-fare-section .lr-section-title {
+    padding: 3px 6px;
+    background: #071b34;
+    color: #fff;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-fare-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8.5pt;
+  }
+
+  .lr-fare-tbl th,
+  .lr-fare-tbl td {
+    padding: 2px 4px;
+    border: 1px solid #071b34;
+    vertical-align: middle;
+    line-height: 1.2;
+  }
+
+  .lr-fare-tbl thead th {
+    background: #071b34;
+    color: #fff;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .lr-fare-tbl .col-sn {
+    width: 7%;
+    text-align: center;
+  }
+
+  .lr-fare-tbl .col-part {
+    text-align: left;
+  }
+
+  .lr-fare-tbl .col-amt {
+    width: 22%;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .lr-fare-tbl tbody td:not(.col-sn):not(.col-amt) {
+    text-align: left;
+  }
+
+  .lr-fare-tbl tr.row-subtotal td,
+  .lr-fare-tbl tr.row-gst td {
+    background: #ececec;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .lr-fare-tbl tr.row-subtotal td:nth-child(2),
+  .lr-fare-tbl tr.row-gst td:nth-child(2) {
+    text-align: center;
+  }
+
+  .lr-fare-tbl tr.row-grand td {
+    background: #071b34;
+    color: #fff;
+    font-size: 9pt;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .lr-fare-tbl tr.row-grand td:nth-child(2) {
+    text-align: center;
+  }
+
+  .lr-words {
+    padding: 4px 6px;
+    border-top: 1px solid #071b34;
+  }
+
+  .lr-words-label {
+    color: #666;
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+
+  .lr-words-value {
+    margin-top: 2px;
+    color: #000;
+    font-size: 8.5pt;
+    font-weight: 700;
+    font-style: italic;
+    line-height: 1.25;
+  }
+
+  .lr-stamp-box {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 45mm;
+    height: 20mm;
+    margin: 3px 0 0 auto;
+    border: 1px solid #333;
+    overflow: hidden;
+  }
+
+  .lr-stamp-label {
+    flex-shrink: 0;
+    padding: 1px 3px 0;
+    color: #666;
+    font-size: 5.5pt;
+    font-weight: 600;
+    letter-spacing: 0.15px;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .lr-stamp-space {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .lr-copy-footer {
+    padding-top: 4px;
+    margin-top: 4px;
+  }
+
+  .lr-tc-block {
+    margin: 0;
+    padding: 4px 6px;
+    border: 1px solid #999;
+    color: #333;
+    column-count: 2;
+    column-gap: 10px;
+  }
+
+  .lr-tc-line {
+    font-size: 7.5pt;
+    line-height: 1.2;
+    margin: 0;
+    break-inside: avoid;
+  }
+
+  .lr-tc-line + .lr-tc-line {
+    margin-top: 2px;
+  }
+
+  .lr-signatures {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    align-items: end;
+    margin: 0;
+    padding: 0;
+  }
+
+  .lr-signature-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 11mm;
+  }
+
+  .lr-signature-pad {
+    width: 100%;
+    flex: 1;
+    min-height: 7mm;
+    border-top: 1px solid #000;
+  }
+
+  .lr-signature-label {
+    margin-top: 4px;
+    color: #000;
+    font-size: 10pt;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .lr-sticker-sheet {
+    page: sticker-portrait;
+    display: grid !important;
+    grid-template-columns: 90mm 90mm;
+    justify-content: center;
+    gap: 6mm 8mm;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .lr-sticker-sheet .lr-sticker {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 90mm;
+    height: 35mm;
+    padding: 2mm 3mm;
+    border: 1px solid #071b34;
+    overflow: hidden;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .lr-sticker-sheet .lr-sticker-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 2mm;
+    align-items: center;
+    min-height: 0;
+  }
+
+  .lr-sticker-sheet .lr-sticker-logo {
+    grid-row: 1 / span 2;
+    width: 10mm;
+    height: 10mm;
+    object-fit: contain;
+  }
+
+  .lr-sticker-sheet .lr-sticker-brand {
+    grid-column: 2;
+    color: #071b34;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    line-height: 1.1;
+  }
+
+  .lr-sticker-sheet .lr-sticker-tag {
+    grid-column: 2;
+    color: #c8102e;
+    font-size: 5.5pt;
+    font-weight: 700;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .lr-sticker-sheet .lr-sticker-lr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .lr-sticker-sheet .lr-sticker-lr-label {
+    color: #333;
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .lr-sticker-sheet .lr-sticker-lr-value {
+    color: #000;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 18pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .lr-sticker-sheet .lr-sticker-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 4mm;
+    color: #333;
+    font-size: 6pt;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  /* Thermal sticker print (dedicated /bookings/[id]/sticker page) */
+  body.printing-stickers .sticker-print-root {
+    position: static !important;
+    width: 102mm !important;
+    max-width: 102mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .sticker-print-root .sticker-toolbar,
+  .sticker-print-root .no-print {
+    display: none !important;
+  }
+
+  body.printing-stickers .sticker-print-root .sticker-page {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    width: 102mm !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-stickers .sticker-page .lr-sticker {
+    page: sticker-thermal;
+    width: 102mm !important;
+    height: 63.5mm !important;
+    min-width: 102mm !important;
+    min-height: 63.5mm !important;
+    max-width: 102mm !important;
+    max-height: 63.5mm !important;
+    padding: 4mm;
+    border: 1.5px solid #000;
+    border-radius: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #fff;
+    color: #000;
+    font-family: Arial, Helvetica, sans-serif;
+    overflow: hidden;
+    box-shadow: none;
+    margin: 0 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.printing-stickers .sticker-page .lr-sticker:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .sticker-page .lr-sticker-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1mm;
+    padding-bottom: 1mm;
+    border-bottom: 1px solid #000;
+  }
+
+  .sticker-page .lr-sticker-brand-block {
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sticker-page .lr-sticker-logo {
+    width: 6mm;
+    height: 6mm;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .sticker-page .lr-sticker-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.05;
+  }
+
+  .sticker-page .lr-sticker-brand {
+    color: #000;
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+  }
+
+  .sticker-page .lr-sticker-sub {
+    color: #666;
+    font-size: 6pt;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+
+  .sticker-page .lr-sticker-box-badge {
+    flex-shrink: 0;
+    padding: 0.8mm 1.5mm;
+    border: 1.5px solid #000;
+    font-size: 6pt;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .sticker-page .lr-sticker-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1mm 0;
+  }
+
+  .sticker-page .lr-sticker-ref-label {
+    font-size: 6pt;
+    font-weight: 700;
+    letter-spacing: 0.25px;
+    text-transform: uppercase;
+    color: #333;
+  }
+
+  .sticker-page .lr-sticker-ref-value {
+    margin-top: 0.5mm;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 17pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1.05;
+  }
+
+  .sticker-page .lr-sticker-footer {
+    padding-top: 1mm;
+    border-top: 1px solid #000;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .sticker-page .lr-sticker-addr {
+    font-size: 5.5pt;
+    color: #222;
+  }
+
+  .sticker-page .lr-sticker-mobile {
+    margin-top: 0.5mm;
+    font-size: 6pt;
+    font-weight: 700;
+    color: #000;
   }
 }

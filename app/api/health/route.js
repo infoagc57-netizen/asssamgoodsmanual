@@ -1,20 +1,27 @@
-import { createResponse, createError, handleApiRequest } from "@/lib/api";
 import dbConnect from "@/lib/mongodb";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return handleApiRequest(async () => {
+  try {
     await dbConnect();
 
-    return createResponse(
+    return Response.json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[Health] MongoDB connection failed:", error);
+
+    return Response.json(
       {
-        status: "ok",
-        service: "AGC Manual ERP API",
-        version: "0.1.0",
+        status: "error",
+        database: "disconnected",
+        message: error.message || "MongoDB connection failed",
         timestamp: new Date().toISOString(),
       },
-      "API is running"
+      { status: 503 }
     );
-  });
+  }
 }

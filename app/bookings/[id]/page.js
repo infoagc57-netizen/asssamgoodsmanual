@@ -1,9 +1,9 @@
 "use client";
 
-import JsBarcode from "jsbarcode";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import AppLayout from "../../../components/layout/AppLayout";
+import LrPrintLayout from "@/components/bookings/LrPrintLayout";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
@@ -11,6 +11,57 @@ const ORANGE = "#F97316";
 const paymentLabel = (value) => value === "to_pay" ? "TO PAY" : value === "paid" ? "PAID" : "TBB";
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const text = (value) => value || "-";
+const printText = (value, fallback = "-") => (
+  value !== undefined && value !== null && String(value).trim() !== "" ? value : fallback
+);
+
+function bookingToPrintForm(booking) {
+  const route = booking.route || {};
+  const consignor = booking.consignor || {};
+  const consignee = booking.consignee || {};
+  const goods = booking.goods || {};
+  const dimensions = booking.dimensions || {};
+  return {
+    bookingDate: booking.date || "",
+    bookingTime: booking.time || "",
+    bookingBranch: route.bookingBranch || "",
+    deliveryBranch: route.deliveryBranch || "",
+    deliveryAt: route.deliveryAt || "",
+    consignorName: consignor.name || "",
+    consignorMobile: consignor.mobile || "",
+    consignorGst: consignor.gst || "",
+    consignorPincode: consignor.pincode || "",
+    consignorCity: consignor.city || "",
+    consignorState: consignor.state || "",
+    consignorAddress: consignor.address || "",
+    consigneeName: consignee.name || "",
+    consigneeMobile: consignee.mobile || "",
+    consigneeGst: consignee.gst || "",
+    consigneePincode: consignee.pincode || "",
+    consigneeCity: consignee.city || "",
+    consigneeState: consignee.state || "",
+    consigneeAddress: consignee.address || "",
+    articles: goods.articles || "",
+    packageType: goods.packageType || "",
+    noOfPackages: goods.packages ?? "",
+    privateMark: goods.privateMark || "",
+    goodsDescription: goods.description || "",
+    invoiceNumber: goods.invoiceNumber || "",
+    ewayBillNumber: goods.ewayBillNumber || "",
+    riskType: goods.riskType || "",
+    declaredValue: goods.declaredValue ?? "",
+    codAmount: goods.codAmount ?? "",
+    dimensionLength: dimensions.length ?? "",
+    dimensionWidth: dimensions.width ?? "",
+    dimensionHeight: dimensions.height ?? "",
+    dimensionUnit: dimensions.unit || "",
+    dimensionPieces: dimensions.pieces ?? "",
+  };
+}
+
+function chargeCompute(charges) {
+  return (field) => Number(charges?.[field] || 0);
+}
 
 const TRACKING_EVENTS = [
   "Manifest Uploaded",
@@ -103,30 +154,6 @@ function DetailGrid({ items }) {
   );
 }
 
-function LrBarcode({ value }) {
-  const barcodeRef = useRef(null);
-
-  useEffect(() => {
-    if (!barcodeRef.current || !value) return;
-    JsBarcode(barcodeRef.current, value, {
-      format: "CODE128",
-      displayValue: false,
-      height: 42,
-      width: 2,
-      margin: 0,
-      background: "#ffffff",
-      lineColor: "#000000",
-    });
-  }, [value]);
-
-  return (
-    <div className="lr-barcode-box">
-      <svg ref={barcodeRef} />
-      <span>{value}</span>
-    </div>
-  );
-}
-
 export default function BookingDetailsPage() {
   const params = useParams();
   const [booking, setBooking] = useState(null);
@@ -141,23 +168,34 @@ export default function BookingDetailsPage() {
   const [trackingMenuId, setTrackingMenuId] = useState("");
 
   useEffect(() => {
-    try {
-      const records = JSON.parse(window.localStorage.getItem("agc_bookings") || "[]");
-      const lrNumber = decodeURIComponent(params?.id || "");
-      const record = records.find((item) => item.lrNumber === lrNumber) || null;
-      setBooking(record);
-      setTrackingHistory(record?.trackingHistory || []);
-      const customers = JSON.parse(window.localStorage.getItem("agc_customers") || "[]");
-      const customer = customers.find((item) => item.name.toLowerCase() === record?.consignor?.name?.toLowerCase());
-      setAccountCustomerId(customer?.id || "");
-      const credits = JSON.parse(window.localStorage.getItem("agc_ledger") || "[]").filter((entry) => entry.customerId === customer?.id && entry.credit > 0).reduce((total, entry) => total + Number(entry.credit || 0), 0);
-      const total = Number(record?.grandTotal || 0);
-      setPaymentStatus(record?.paymentType === "paid" || credits >= total ? "Paid" : credits > 0 ? "Partial" : "Pending");
-    } catch {
-      setBooking(null);
-    } finally {
-      setLoading(false);
-    }
+    let cancelled = false;
+    const lrNumber = decodeURIComponent(params?.id || "");
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/bookings/${encodeURIComponent(lrNumber)}`);
+        const data = await response.json();
+        const record = response.ok ? data.booking : null;
+        if (cancelled) return;
+
+        setBooking(record);
+        setTrackingHistory(record?.trackingHistory || []);
+        const customers = JSON.parse(window.localStorage.getItem("agc_customers") || "[]");
+        const customer = customers.find((item) => item.name.toLowerCase() === record?.consignor?.name?.toLowerCase());
+        setAccountCustomerId(customer?.id || "");
+        const credits = JSON.parse(window.localStorage.getItem("agc_ledger") || "[]").filter((entry) => entry.customerId === customer?.id && entry.credit > 0).reduce((total, entry) => total + Number(entry.credit || 0), 0);
+        const total = Number(record?.grandTotal || 0);
+        setPaymentStatus(record?.paymentType === "paid" || credits >= total ? "Paid" : credits > 0 ? "Partial" : "Pending");
+      } catch {
+        if (!cancelled) setBooking(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [params]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading booking...</div>;
@@ -166,7 +204,7 @@ export default function BookingDetailsPage() {
       <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-xl font-bold" style={{ color: NAVY }}>Booking not found</h1>
-          <p className="mt-2 text-sm text-slate-500">No local booking exists for this LR number.</p>
+          <p className="mt-2 text-sm text-slate-500">No booking exists for this LR number.</p>
           <a href="/bookings" className="mt-5 inline-flex rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Back to Bookings</a>
         </div>
       </main>
@@ -180,15 +218,33 @@ export default function BookingDetailsPage() {
   const consignee = booking.consignee || {};
   const route = booking.route || {};
   const orderedTracking = [...trackingHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const actualWeight = Number(goods.actualWeight) || 0;
+  const chargedWeight = Number(goods.chargedWeight) || 0;
+  const volumetricWeight = Number(dimensions.volumetricWeight) || 0;
+  const cubicFeet = Number(dimensions.cubicFeet) || 0;
+  const cbm = Number(dimensions.cbm) || 0;
+  const chargedByVolumetricWeight = volumetricWeight > actualWeight;
+  const builtyCharge = Number(charges.builtyCharge) || 150;
+  const toPayBuiltyCharge = Number(charges.toPayBuiltyCharge) || (booking.paymentType === "to_pay" ? 100 : 0);
+  const codHandlingFee = Number(charges.codHandlingFee) || 0;
 
-  const persistTrackingHistory = (nextHistory) => {
-    const records = JSON.parse(window.localStorage.getItem("agc_bookings") || "[]");
-    const index = records.findIndex((item) => item.lrNumber === booking.lrNumber);
-    if (index === -1) return;
-    records[index] = { ...records[index], trackingHistory: nextHistory };
-    window.localStorage.setItem("agc_bookings", JSON.stringify(records));
-    setTrackingHistory(nextHistory);
-    setBooking(records[index]);
+  const persistTrackingHistory = async (nextHistory) => {
+    try {
+      const response = await fetch(`/api/bookings/${encodeURIComponent(booking.lrNumber)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackingHistory: nextHistory }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        window.alert(data.error || "Unable to save tracking update.");
+        return;
+      }
+      setTrackingHistory(nextHistory);
+      setBooking(data.booking);
+    } catch {
+      window.alert("Unable to save tracking update.");
+    }
   };
 
   const openTrackingModal = (entry) => {
@@ -249,7 +305,7 @@ export default function BookingDetailsPage() {
   return (
     <AppLayout>
     <>
-    <main className="booking-details-screen print:hidden min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
+    <main className="booking-details-screen screen-only min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -259,9 +315,17 @@ export default function BookingDetailsPage() {
               <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">{booking.status || "Booked"}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <a href="/bookings" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Back</a>
-            <button type="button" onClick={() => window.print()} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Print</button>
+            <a
+              href={`/bookings/${encodeURIComponent(booking.lrNumber)}/sticker`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Print Sticker
+            </a>
+            <button type="button" onClick={() => window.print()} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Print LR</button>
           </div>
         </div>
 
@@ -363,10 +427,11 @@ export default function BookingDetailsPage() {
           <div className="p-5">
             {orderedTracking.length ? (
               <ol className="relative ml-3 border-l border-slate-200 pl-8">
-                {orderedTracking.map((entry) => {
+                {orderedTracking.map((entry, index) => {
                   const tone = trackingColors[trackingTone(entry.event)] || trackingColors.transit;
+                  const entryKey = entry._id?.toString() || entry.id || `${entry.event}-${entry.timestamp || index}-${index}`;
                   return (
-                    <li key={entry.id} className="relative pb-8 last:pb-0">
+                    <li key={entryKey} className="relative pb-8 last:pb-0">
                       <span className={`absolute -left-[2.55rem] flex h-8 w-8 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
                         <TrackingIcon event={entry.event} />
                       </span>
@@ -457,93 +522,25 @@ export default function BookingDetailsPage() {
       </div>
     </main>
 
-    <section className="lr-print-only hidden print:block" aria-label="Assam Goods Carrier Lorry Receipt">
-      <div className="lr-paper">
-        <div className="lr-header">
-          <div className="lr-brand"><img src="/brand/agc-logo.jpg" alt="Assam Goods Carrier" className="lr-logo-img" /><div><strong>ASSAM GOODS CARRIER</strong><span>SAFE • RELIABLE • ON TIME</span></div></div>
-          <div className="lr-title"><strong>LORRY RECEIPT</strong><span>Goods Consignment Note</span><b>ORIGINAL</b></div>
-          <div className="lr-reference"><div><span>LR NO.</span><strong>{booking.lrNumber}</strong></div><LrBarcode value={booking.lrNumber} /><div className="lr-date-time"><span>DATE <b>{text(booking.date)}</b></span><span>TIME <b>{text(booking.time)}</b></span></div></div>
-        </div>
-
-        <div className="lr-route-strip"><div><span>BOOKING BRANCH</span><b>{text(route.bookingBranch)}</b></div><div><span>DELIVERY BRANCH</span><b>{text(route.deliveryBranch)}</b></div><div><span>DELIVERY AT</span><b>{text(route.deliveryAt)}</b></div><strong className={`lr-payment-badge ${booking.paymentType}`}>{paymentLabel(booking.paymentType)}</strong></div>
-
-        <div className="lr-parties-print">
-          <div className="lr-print-box"><h3>CONSIGNOR</h3><p><b>Name</b><span>{text(consignor.name)}</span></p><p><b>Mobile</b><span>{text(consignor.mobile)}</span><b>GST</b><span>{text(consignor.gst)}</span></p><p><b>Address</b><span>{text(consignor.address)}</span></p></div>
-          <div className="lr-print-box"><h3>CONSIGNEE</h3><p><b>Name</b><span>{text(consignee.name)}</span></p><p><b>Mobile</b><span>{text(consignee.mobile)}</span><b>GST</b><span>{text(consignee.gst)}</span></p><p><b>Address</b><span>{text(consignee.address)}</span></p></div>
-        </div>
-
-        <div className="lr-print-box lr-goods-print"><h3>GOODS DETAILS</h3><table><thead><tr><th>Articles</th><th>Package Type</th><th>Pieces</th><th>Private Mark</th><th>Invoice Number</th><th>E-Way Bill</th></tr></thead><tbody><tr><td>{text(goods.articles)}</td><td>{text(goods.packageType)}</td><td>{text(goods.packages)}</td><td>{text(goods.privateMark)}</td><td>{text(goods.invoiceNumber)}</td><td>{text(goods.ewayBillNumber)}</td></tr></tbody></table><div className="lr-goods-foot"><span><b>Risk Type:</b> {text(goods.riskType).replace("_risk", "")}</span><span><b>Declared Value:</b> {money(goods.declaredValue)}</span></div></div>
-
-        <div className="lr-print-columns">
-          <div className="lr-print-box"><h3>WEIGHT &amp; DIMENSIONS</h3><div className="lr-measures"><span><b>Length</b>{text(dimensions.length)}</span><span><b>Width</b>{text(dimensions.width)}</span><span><b>Height</b>{text(dimensions.height)}</span><span><b>Unit</b>{String(dimensions.unit || "").toUpperCase()}</span><span><b>Pieces</b>{text(dimensions.pieces)}</span><span><b>Cubic Feet</b>{Number(dimensions.cubicFeet || 0).toFixed(2)}</span><span><b>CBM</b>{Number(dimensions.cbm || 0).toFixed(4)}</span><span><b>Volumetric Weight</b>{Number(dimensions.volumetricWeight || 0).toFixed(2)} KG</span></div><div className="lr-weight-print"><span><b>Actual Weight</b>{Number(goods.actualWeight || 0).toFixed(2)} KG</span><span><b>Charged Weight (Auto)</b>{Number(goods.chargedWeight || 0).toFixed(2)} KG</span></div><small className="lr-charge-note">Charged by {Number(goods.volumetricWeight || 0) > Number(goods.actualWeight || 0) ? "Volumetric Weight" : "Actual Weight"}</small></div>
-          <div className="lr-print-box lr-freight-print"><h3>FREIGHT BREAKUP</h3><table><thead><tr><th>Particular</th><th>Amount</th></tr></thead><tbody><tr><td>Freight</td><td>{money(charges.freight)}</td></tr><tr><td>Hamali</td><td>{money(charges.hamali)}</td></tr><tr><td>Door Delivery</td><td>{money(charges.doorDelivery)}</td></tr><tr><td>Local Cartage Charges</td><td>{money(charges.localCartageCharges)}</td></tr><tr><td>Self Builty Charge</td><td>{money(charges.selfBuiltyCharge)}</td></tr><tr><td>Builty Charge</td><td><b>₹150.00</b></td></tr>{booking.paymentType === "to_pay" && <tr><td>To Pay Extra Charge</td><td><b>₹100.00</b></td></tr>}<tr><td>Other Charges</td><td>{money(charges.otherCharges)}</td></tr><tr><td>GST on Freight</td><td>{money(charges.gstOnFreight)}</td></tr></tbody></table><div className="lr-grand-total"><span>GRAND TOTAL</span><strong>{money(booking.grandTotal)}</strong></div></div>
-        </div>
-
-        <div className="lr-signature-row"><div>Booking Clerk</div><div>Receiver</div><div>Customer</div></div>
-        <div className="lr-print-footer">Assam Goods Carrier <span>•</span> Subject to Company Rules.</div>
-      </div>
-    </section>
-    <style jsx global>{`
-      .lr-print-only { display: none; }
-      @media print {
-        @page { size: A4 landscape; margin: 8mm; }
-        html, body { background: #fff !important; }
-        .sidebar, header, .booking-form, .sticky-action-bar, .booking-details-screen { display: none !important; }
-        .lr-print-only { display: block !important; width: 100%; color: #0B1F33; font-family: Arial, Helvetica, sans-serif; }
-        .lr-paper { box-sizing: border-box; width: 100%; height: 194mm; overflow: hidden; border: 1px solid #0B1F33; padding: 3mm; page-break-inside: avoid; }
-        .lr-header { display: grid; grid-template-columns: 1.35fr 1fr 1.25fr; border-bottom: 1px solid #0B1F33; }
-        .lr-brand, .lr-title, .lr-reference { min-height: 26mm; padding: 2mm; border-right: 1px solid #94a3b8; }
-        .lr-reference { border-right: 0; display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 2mm; }
-        .lr-logo-img { height: 14mm; width: auto; object-fit: contain; }
-        .lr-logo-box { display: none; }
-        .lr-brand { display: flex; align-items: center; gap: 3mm; }
-        .lr-brand strong { display: block; font-size: 13pt; letter-spacing: 0.3mm; }
-        .lr-brand span, .lr-title span { display: block; margin-top: 1mm; color: #64748b; font-size: 6.5pt; font-weight: 700; letter-spacing: 0.8mm; }
-        .lr-title { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .lr-title strong { font-size: 17pt; letter-spacing: 1mm; }
-        .lr-title b { margin-top: 2mm; border: 1px solid #F97316; padding: 1mm 4mm; color: #F97316; font-size: 6.5pt; letter-spacing: 0.8mm; }
-        .lr-reference > div:first-child > span, .lr-date-time span { display: block; color: #64748b; font-size: 5.5pt; font-weight: 700; letter-spacing: 0.5mm; }
-        .lr-reference > div:first-child strong { display: block; margin-top: 1mm; color: #F97316; font-size: 12pt; letter-spacing: 0.5mm; }
-        .lr-barcode-box { display: flex; flex-direction: column; align-items: flex-start; gap: 0.7mm; overflow: visible; }
-        .lr-barcode-box svg { display: block; width: 180px; height: 42px; background: #fff; }
-        .lr-barcode-box span { font-size: 6pt; letter-spacing: 0.8mm; }
-        .lr-date-time { grid-column: 1 / -1; display: flex; gap: 7mm; align-items: end; }
-        .lr-date-time b { display: block; margin-top: 0.7mm; color: #0B1F33; font-size: 7pt; letter-spacing: 0; }
-        .lr-route-strip { display: grid; grid-template-columns: 1fr 1fr 1.4fr 0.55fr; border: 1px solid #0B1F33; border-top: 0; }
-        .lr-route-strip > div, .lr-route-strip > strong { min-height: 12mm; padding: 1.5mm 2mm; border-right: 1px solid #cbd5e1; font-size: 7.5pt; }
-        .lr-route-strip > strong { display: flex; align-items: center; justify-content: center; border-right: 0; font-size: 7pt; }
-        .lr-route-strip span { display: block; margin-bottom: 1mm; color: #64748b; font-size: 5.5pt; font-weight: 700; letter-spacing: 0.5mm; }
-        .lr-payment-badge { border: 2px solid #F97316; color: #F97316; }
-        .lr-payment-badge.paid { border-color: #15803d; color: #15803d; }
-        .lr-payment-badge.tbb { border-color: #0B1F33; color: #0B1F33; }
-        .lr-parties-print, .lr-print-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; margin-top: 2mm; }
-        .lr-print-box { overflow: hidden; border: 1px solid #0B1F33; }
-        .lr-print-box h3 { margin: 0; padding: 1.2mm 2mm; background: #0B1F33; color: #fff; font-size: 7pt; letter-spacing: 0.7mm; }
-        .lr-print-box p { display: grid; grid-template-columns: 18mm 1fr; gap: 2mm; margin: 0; min-height: 6mm; padding: 1mm 2mm; border-bottom: 1px solid #e2e8f0; font-size: 7pt; }
-        .lr-print-box p:last-child { border-bottom: 0; }
-        .lr-print-box p b { color: #64748b; font-size: 6pt; text-transform: uppercase; }
-        .lr-goods-print { margin-top: 2mm; }
-        .lr-goods-print table, .lr-freight-print table { width: 100%; border-collapse: collapse; font-size: 7pt; }
-        .lr-goods-print th, .lr-goods-print td, .lr-freight-print th, .lr-freight-print td { border: 1px solid #cbd5e1; padding: 1.3mm 1.5mm; text-align: left; }
-        .lr-goods-print th, .lr-freight-print th { background: #e2e8f0; color: #0B1F33; font-size: 6pt; letter-spacing: 0.3mm; }
-        .lr-goods-print th:not(:first-child), .lr-goods-print td:not(:first-child), .lr-freight-print td:last-child { text-align: right; }
-        .lr-goods-foot { display: flex; justify-content: flex-end; gap: 12mm; padding: 1.5mm 2mm; font-size: 7pt; }
-        .lr-detail-grid { grid-template-columns: 1.15fr 0.85fr; }
-        .lr-measures { display: grid; grid-template-columns: repeat(4, 1fr); }
-        .lr-measures span { display: flex; flex-direction: column; gap: 1mm; min-height: 8mm; padding: 1.4mm 2mm; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; font-size: 7pt; }
-        .lr-measures b, .lr-weight-print b { color: #64748b; font-size: 5.5pt; text-transform: uppercase; }
-        .lr-weight-print { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; padding: 1.5mm 2mm; font-size: 8pt; }
-        .lr-weight-print span { display: flex; flex-direction: column; gap: 1mm; }
-        .lr-charge-note { display: block; padding: 0 2mm 1.5mm; color: #F97316; font-size: 6pt; font-weight: 700; }
-        .lr-freight-print td:last-child { width: 26mm; font-weight: 600; }
-        .lr-grand-total { display: flex; align-items: center; justify-content: space-between; margin: 2mm; padding: 2mm 3mm; background: #F97316; color: #fff; }
-        .lr-grand-total span { font-size: 9pt; font-weight: 800; letter-spacing: 0.8mm; }
-        .lr-grand-total strong { font-size: 15pt; }
-        .lr-signature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15mm; margin: 5mm 3mm 0; }
-        .lr-signature-row div { padding-top: 7mm; border-top: 1px solid #64748b; text-align: center; color: #64748b; font-size: 6.5pt; }
-        .lr-print-footer { margin-top: 3mm; border-top: 1px solid #cbd5e1; padding-top: 1.5mm; text-align: center; color: #64748b; font-size: 6pt; }
-      }
-    `}</style>
+    <div className="lr-print-section">
+      <LrPrintLayout
+        lrNumber={booking.lrNumber}
+        form={bookingToPrintForm(booking)}
+        paymentLabel={paymentLabel(booking.paymentType)}
+        actualWeight={actualWeight}
+        chargedWeight={chargedWeight}
+        volumetricWeight={volumetricWeight}
+        cubicFeet={cubicFeet}
+        cbm={cbm}
+        chargedByVolumetricWeight={chargedByVolumetricWeight}
+        builtyCharge={builtyCharge}
+        toPayBuiltyCharge={toPayBuiltyCharge}
+        codHandlingFee={codHandlingFee}
+        grandTotal={Number(booking.grandTotal) || 0}
+        compute={chargeCompute(charges)}
+        printText={printText}
+      />
+    </div>
     </>
     </AppLayout>
   );

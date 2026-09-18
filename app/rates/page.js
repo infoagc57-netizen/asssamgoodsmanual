@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppLayout from "../../components/layout/AppLayout";
+import ExcelUploadDialog from "../../components/rates/ExcelUploadDialog";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
@@ -9,13 +10,35 @@ const STORAGE_KEY = "agc_rate_master";
 const inputClass = "h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
+const today = () => new Date().toISOString().slice(0, 10);
 const customerLabel = (rate) => (rate.generalRate ? "General Rate" : rate.customerName || rate.customerId || "-");
-const routeLabel = (rate) => `${rate.fromBranchName || rate.fromBranch || "-"} → ${rate.toBranchName || rate.toBranch || "-"}`;
+const routeLabel = (rate) => `${rate.fromBranchName || rate.fromBranch || "-"} → ${rate.toBranchName || rate.toBranch || rate.toStation || "-"}`;
+
+const nextRateId = (rates) => {
+  const next = rates.reduce((max, rate) => Math.max(max, Number(String(rate.id).replace("RATE", "")) || 0), 0) + 1;
+  return `RATE${String(next).padStart(4, "0")}`;
+};
+
+const stationKey = (value) => String(value || "").trim().toLowerCase();
+
+const matchesGeneralStation = (rate, station) => {
+  if (!rate?.generalRate) return false;
+  const key = stationKey(station);
+  return (
+    stationKey(rate.toStation) === key
+    || stationKey(rate.toBranchName) === key
+    || stationKey(rate.toBranch) === key
+  );
+};
+
+const titleCaseStation = (station) => String(station || "").trim().replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function RatesPage() {
   const [rates, setRates] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [toast, setToast] = useState("");
 
   const loadRates = () => {
     try {
@@ -26,6 +49,65 @@ export default function RatesPage() {
   };
 
   useEffect(() => { loadRates(); }, []);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const handleImportRates = (parsedRates) => {
+    const existing = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
+    const now = new Date().toISOString();
+    const effectiveFrom = today();
+    let importedCount = 0;
+    const nextRates = [...existing];
+
+    parsedRates.forEach(({ station, rate }) => {
+      const trimmedStation = String(station || "").trim();
+      const rateValue = Number(rate);
+      if (!trimmedStation || !Number.isFinite(rateValue) || rateValue <= 0) return;
+
+      const index = nextRates.findIndex((item) => matchesGeneralStation(item, trimmedStation));
+      if (index >= 0) {
+        nextRates[index] = {
+          ...nextRates[index],
+          toStation: trimmedStation,
+          toBranch: trimmedStation,
+          toBranchName: titleCaseStation(trimmedStation),
+          rate: rateValue,
+          rateType: nextRates[index].rateType || "Per Kg",
+          effectiveFrom,
+          status: "Active",
+          updatedAt: now,
+        };
+      } else {
+        nextRates.push({
+          id: nextRateId(nextRates),
+          customerId: "",
+          customerName: "General Rate",
+          generalRate: true,
+          fromBranch: "",
+          fromBranchName: "All",
+          toStation: trimmedStation,
+          toBranch: trimmedStation,
+          toBranchName: titleCaseStation(trimmedStation),
+          rate: rateValue,
+          rateType: "Per Kg",
+          minFreight: 0,
+          effectiveFrom,
+          status: "Active",
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+      importedCount += 1;
+    });
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRates));
+    setRates(nextRates);
+    setToast(`${importedCount} rates imported successfully`);
+  };
 
   const disableRate = (id) => {
     const updated = rates.map((rate) => rate.id === id ? { ...rate, status: "Inactive", updatedAt: new Date().toISOString() } : rate);
@@ -49,8 +131,23 @@ export default function RatesPage() {
               <h1 className="mt-1 text-3xl font-bold" style={{ color: NAVY }}>Rate Master</h1>
               <p className="mt-1 text-sm text-slate-500">Maintain customer and general freight rates by route.</p>
             </div>
-            <a href="/rates/new" className="inline-flex h-[42px] items-center justify-center rounded-xl px-5 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>+ Add Rate</a>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setUploadOpen(true)}
+                className="inline-flex h-[42px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Upload Excel
+              </button>
+              <a href="/rates/new" className="inline-flex h-[42px] items-center justify-center rounded-xl px-5 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>+ Add Rate</a>
+            </div>
           </div>
+
+          {toast && (
+            <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+              {toast}
+            </div>
+          )}
 
           <div className="mb-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2">
             <input className={inputClass} placeholder="Search customer or route" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -106,6 +203,11 @@ export default function RatesPage() {
           </div>
         </div>
       </main>
+      <ExcelUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onImport={handleImportRates}
+      />
     </AppLayout>
   );
 }
