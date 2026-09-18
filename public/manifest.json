@@ -1,0 +1,17 @@
+{
+  "name": "AGC Manual ERP",
+  "short_name": "AGC ERP",
+  "description": "Production-grade logistics and supply chain management platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f4fa",
+  "theme_color": "#0a1f3b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

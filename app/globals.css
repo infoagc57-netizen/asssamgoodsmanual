@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --agc-navy: #071B34;
+  --agc-dark: #0B1F3A;
+  --agc-orange: #F97316;
+  --agc-bg: #F5F7FA;
+  --agc-card: #FFFFFF;
+  --agc-border: #E5E7EB;
+  --agc-text: #1F2937;
+}
+
+html,
+body {
+  background: var(--agc-bg);
+  color: var(--agc-text);
+}
+
+@layer components {
+  .agc-card {
+    @apply rounded-[18px] border border-[#E5E7EB] bg-white p-5 shadow-card;
+  }
+
+  .agc-table-wrap {
+    @apply overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white shadow-card;
+  }
+
+  .agc-btn-primary {
+    @apply inline-flex h-[42px] items-center justify-center rounded-xl bg-[#F97316] px-5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90;
+  }
+
+  .agc-btn-secondary {
+    @apply inline-flex h-[42px] items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-5 text-sm font-semibold text-[#1F2937] transition hover:bg-[#F5F7FA];
+  }
+
+  .agc-input {
+    @apply h-[42px] w-full rounded-xl border border-[#E5E7EB] bg-[#F5F7FA] px-3 text-sm text-[#1F2937] outline-none transition placeholder:text-slate-400 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100;
+  }
+
+  .agc-status-booked {
+    @apply rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700;
+  }
+
+  .agc-status-loaded {
+    @apply rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700;
+  }
+
+  .agc-status-transit {
+    @apply rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700;
+  }
+
+  .agc-status-arrived {
+    @apply rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700;
+  }
+
+  .agc-status-delivered {
+    @apply rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700;
+  }
+
+  .agc-status-pod {
+    @apply rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700;
+  }
+}
+
+@media screen {
+  main table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  main table tbody tr:hover {
+    background: rgba(249, 115, 22, 0.06);
+  }
+}
+
+@media print {
+  aside,
+  header.agc-navbar {
+    display: none !important;
+  }
+}

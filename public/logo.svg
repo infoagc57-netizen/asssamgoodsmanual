@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="logoNavy" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3359"/>
+      <stop offset="100%" style="stop-color:#0a1f3b"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="12" fill="url(#logoNavy)"/>
+  <text x="50%" y="56%" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="26" fill="#f97316" dominant-baseline="middle">A</text>
+</svg>
