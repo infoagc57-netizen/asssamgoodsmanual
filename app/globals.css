@@ -589,14 +589,42 @@ body {
     color: #fff;
   }
 
+  .lr-title-pills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
   .lr-payment-pill {
     display: inline-block;
-    margin-top: 4px;
     padding: 3px 8px;
     border: 1px solid #000;
     font-size: 11pt;
     font-weight: 700;
     letter-spacing: 0.4px;
+  }
+
+  .lr-delivery-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 11pt;
+    font-weight: 800;
+    letter-spacing: 0.35px;
+    text-transform: uppercase;
+  }
+
+  .lr-delivery-pill-door {
+    background: #f97316;
+    color: #fff;
+    border: 2px solid #c2410c;
+  }
+
+  .lr-delivery-pill-godown {
+    background: #071b34;
+    color: #fff;
+    border: 2px solid #000;
   }
 
   .lr-h-title-right {

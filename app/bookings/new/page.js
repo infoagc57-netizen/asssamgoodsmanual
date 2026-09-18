@@ -240,6 +240,7 @@ export default function NewBookingPage() {
     freight: "", freightManuallyEdited: false, hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
     builtyCharge: "150",
     paymentType: "to_pay",
+    deliveryType: "door",
   });
 
   const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
@@ -454,6 +455,7 @@ export default function NewBookingPage() {
           freightManuallyEdited: false,
           builtyCharge: charges.builtyCharge ?? "150",
           paymentType: record.paymentType || "to_pay",
+          deliveryType: record.deliveryType || "door",
         }));
       } catch {
         window.alert("Unable to load booking for edit.");
@@ -815,6 +817,7 @@ export default function NewBookingPage() {
       freight: "", freightManuallyEdited: false, hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
       builtyCharge: "150",
       paymentType: "to_pay",
+      deliveryType: "door",
     });
   };
 
@@ -989,6 +992,7 @@ export default function NewBookingPage() {
     date: form.bookingDate,
     time: form.bookingTime,
     paymentType: form.paymentType,
+    deliveryType: form.deliveryType || "door",
     grandTotal: displayTotal,
     consignor: {
       name: form.consignorName,
@@ -1164,6 +1168,7 @@ export default function NewBookingPage() {
   };
   const printText = (value, fallback = "-") => value || fallback;
   const paymentLabel = form.paymentType === "to_pay" ? "TO PAY" : form.paymentType === "paid" ? "PAID" : "TBB";
+  const deliveryTypeLabel = form.deliveryType === "godown" ? "GODOWN DELIVERY" : "DOOR DELIVERY";
   const currentLrNumber = /^79\d{8}$/.test(form.lrNumber) ? form.lrNumber : String(FIRST_LR_NUMBER);
 
   // Compact operator inputs for counter-style booking screen
@@ -1567,6 +1572,29 @@ export default function NewBookingPage() {
                     </p>
                   </Field>
                 </div>
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Delivery Type</label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {[
+                      { value: "door", title: "Door Delivery", hint: "Delivery at consignee address" },
+                      { value: "godown", title: "Godown Delivery", hint: "Consignee collects from godown / warehouse" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setForm((previous) => ({ ...previous, deliveryType: option.value }))}
+                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                          form.deliveryType === option.value
+                            ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
+                        <span className="mt-0.5 block text-xs text-slate-500">{option.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -1932,6 +1960,7 @@ export default function NewBookingPage() {
           lrNumber={currentLrNumber}
           form={form}
           paymentLabel={paymentLabel}
+          deliveryTypeLabel={deliveryTypeLabel}
           actualWeight={actualWeight}
           chargedWeight={chargedWeight}
           volumetricWeight={volumetricWeight}

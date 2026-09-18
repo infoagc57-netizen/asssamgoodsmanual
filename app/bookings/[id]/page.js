@@ -9,6 +9,7 @@ const NAVY = "#071B34";
 const ORANGE = "#F97316";
 
 const paymentLabel = (value) => value === "to_pay" ? "TO PAY" : value === "paid" ? "PAID" : "TBB";
+const deliveryTypeLabel = (value) => (value === "godown" ? "GODOWN DELIVERY" : "DOOR DELIVERY");
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const text = (value) => value || "-";
 const printText = (value, fallback = "-") => (
@@ -56,6 +57,7 @@ function bookingToPrintForm(booking) {
     dimensionHeight: dimensions.height ?? "",
     dimensionUnit: dimensions.unit || "",
     dimensionPieces: dimensions.pieces ?? "",
+    deliveryType: booking.deliveryType || "door",
   };
 }
 
@@ -339,6 +341,7 @@ export default function BookingDetailsPage() {
               ["Delivery Branch", route.deliveryBranch],
               ["Delivery At", route.deliveryAt],
               ["Payment Type", paymentLabel(booking.paymentType)],
+              ["Delivery Type", deliveryTypeLabel(booking.deliveryType)],
               ["Status", booking.status || "Booked"],
               ["Manifest Number", booking.manifestNumber || "Not loaded"],
             ]} />
@@ -527,6 +530,7 @@ export default function BookingDetailsPage() {
         lrNumber={booking.lrNumber}
         form={bookingToPrintForm(booking)}
         paymentLabel={paymentLabel(booking.paymentType)}
+        deliveryTypeLabel={deliveryTypeLabel(booking.deliveryType)}
         actualWeight={actualWeight}
         chargedWeight={chargedWeight}
         volumetricWeight={volumetricWeight}

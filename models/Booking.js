@@ -32,6 +32,10 @@ const BookingSchema = new mongoose.Schema(
     date: String,
     time: String,
     paymentType: String,
+    deliveryType: {
+      type: String,
+      default: "door",
+    },
     grandTotal: {
       type: Number,
       default: 0,

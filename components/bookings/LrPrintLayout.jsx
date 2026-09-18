@@ -72,6 +72,7 @@ function LRCopy({
   lrNumber,
   form,
   paymentLabel,
+  deliveryTypeLabel = "DOOR DELIVERY",
   actualWeight,
   chargedWeight,
   volumetricWeight,
@@ -141,7 +142,12 @@ function LRCopy({
         <div className="lr-h-title-left">
           <span className="lr-copy-badge" style={{ backgroundColor: copy.color }}>{copy.label}</span>
           <h1>LORRY RECEIPT / BILTY</h1>
-          <span className="lr-payment-pill">{paymentLabel}</span>
+          <div className="lr-title-pills">
+            <span className="lr-payment-pill">{paymentLabel}</span>
+            <span className={`lr-delivery-pill ${deliveryTypeLabel.includes("GODOWN") ? "lr-delivery-pill-godown" : "lr-delivery-pill-door"}`}>
+              {deliveryTypeLabel}
+            </span>
+          </div>
         </div>
         <div className="lr-h-title-right">
           <div className="lr-lr-block">
