@@ -14,6 +14,8 @@ const LR_STORAGE_KEY = "agc_next_lr";
 const FIRST_LR_NUMBER = 7900000001;
 const GST_RATE_OPTIONS = [0, 5, 12, 18, 28];
 const COD_HANDLING_FEE = 100;
+const DEFAULT_LR_CODE = "AGC";
+const DEFAULT_BOOKING_BRANCH = "Panchkula, Haryana";
 
 const getTodayDate = () => {
   const now = new Date();
@@ -197,8 +199,6 @@ const Field = ({ label, children, required, help }) => (
 export default function NewBookingPage() {
   const [lrMode, setLrMode] = useState("automatic");
   const lrInputRef = useRef(null);
-  const [lrCodeType, setLrCodeType] = useState("");
-  const [lrCodeOpen, setLrCodeOpen] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [customerSearchRole, setCustomerSearchRole] = useState("");
   const [consignorPartyId, setConsignorPartyId] = useState("");
@@ -225,7 +225,7 @@ export default function NewBookingPage() {
   const lastPincodeFetchRef = useRef({ consignor: "", consignee: "" });
   const lastRoutePincodeFetchRef = useRef({ from: "", to: "" });
   const [form, setForm] = useState({
-    lrNumber: String(FIRST_LR_NUMBER), lrCode: "", bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: "",
+    lrNumber: String(FIRST_LR_NUMBER), lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
     consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
     consignorCity: "", consignorState: "", consignorAddress: "",
     consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
@@ -402,10 +402,10 @@ export default function NewBookingPage() {
         setForm((previous) => ({
           ...previous,
           lrNumber: record.lrNumber,
-          lrCode: record.lrCode || "",
+          lrCode: record.lrCode || DEFAULT_LR_CODE,
           bookingDate: record.date || "",
           bookingTime: record.time || "",
-          bookingBranch: route.bookingBranch || "",
+          bookingBranch: route.bookingBranch || DEFAULT_BOOKING_BRANCH,
           consignorName: consignor.name || "",
           consignorMobile: consignor.mobile || "",
           consignorGst: consignor.gst || "",
@@ -753,14 +753,6 @@ export default function NewBookingPage() {
     setBranchSearchRole("");
     enableRateLookup();
   };
-  const lrCodeOptions = ["SELF", "PARTY", "CASH"];
-  const handleLrCodeSelect = (v) => { setLrCodeType(v); setForm((p) => ({ ...p, lrCode: v })); setLrCodeOpen(false); };
-  const handleLrCodeOther = () => {
-    setLrCodeType("OTHER");
-    setForm((p) => ({ ...p, lrCode: lrCodeOptions.includes(p.lrCode) ? "" : p.lrCode }));
-    setLrCodeOpen(false);
-  };
-
   // Keyboard operator flow: Enter -> next field (UI only), never submit
   const handleFieldKeyDown = (e) => {
     if (e.key !== "Enter") return;
@@ -785,7 +777,6 @@ export default function NewBookingPage() {
   };
 
   const handleReset = () => {
-    setLrCodeType(""); setLrCodeOpen(false);
     if (!isEditMode) setLrMode("automatic");
     setRateLookupReady(true);
     setRateBadge("");
@@ -802,7 +793,7 @@ export default function NewBookingPage() {
     setPartySaveState({ consignor: "", consignee: "" });
     const nextLr = isEditMode ? form.lrNumber : readNextLrNumber();
     setForm({
-      lrNumber: nextLr, lrCode: "", bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: "",
+      lrNumber: nextLr, lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
       consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
       consignorCity: "", consignorState: "", consignorAddress: "",
       consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
@@ -1239,7 +1230,7 @@ export default function NewBookingPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-6">
+                <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">LR Number</label>
                     <input
@@ -1255,36 +1246,6 @@ export default function NewBookingPage() {
                       onChange={handleLrNumberChange}
                       className={isEditMode || lrMode === "automatic" ? "w-full h-[42px] rounded-lg border border-white/10 bg-slate-200/10 px-3 text-[14px] text-white placeholder:text-slate-400 cursor-not-allowed" : "w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white placeholder:text-slate-400 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30"}
                     />
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
-                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">Code</label>
-                    {lrCodeType !== "OTHER" ? (
-                      <div className="relative">
-                        <button type="button" onClick={() => setLrCodeOpen(!lrCodeOpen)} className="flex h-[42px] w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 text-left text-[14px] text-white">
-                          <span className={form.lrCode ? "text-white" : "text-slate-400"}>{form.lrCode || "Select"}</span>
-                          <svg className="h-4 w-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                        </button>
-                        {lrCodeOpen && (
-                          <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-                            <input type="text" autoFocus placeholder="SELF, PARTY, CASH..." onKeyDown={(e) => e.stopPropagation()} onChange={(e) => { const q = e.target.value.toUpperCase(); if (lrCodeOptions.includes(q)) handleLrCodeSelect(q); else setForm((p) => ({ ...p, lrCode: q })); }} className="mb-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[14px] outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100" />
-                            {lrCodeOptions.map((o) => (
-                              <button key={o} type="button" onClick={() => handleLrCodeSelect(o)} className={`flex w-full rounded-lg px-3 py-2 text-left text-[14px] font-medium transition ${lrCodeType === o ? "bg-[#0B1F33] text-white" : "text-slate-700 hover:bg-slate-50"}`}>
-                                {o}
-                              </button>
-                            ))}
-                            <button type="button" onClick={handleLrCodeOther} className={`mt-1 flex w-full rounded-lg border-t border-slate-100 px-3 py-2 text-left text-[14px] font-medium transition ${lrCodeType === "OTHER" ? "bg-[#F97316] text-white" : "text-slate-700 hover:bg-slate-50"}`}>
-                              Other (custom)
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <input type="text" placeholder="Code" value={form.lrCode} onChange={handleChange("lrCode")} className="h-[42px] w-full rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white placeholder:text-slate-400 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30" />
-                        <button type="button" onClick={() => { setLrCodeType(""); setForm((p) => ({ ...p, lrCode: "" })); }} className="h-[42px] shrink-0 rounded-lg border border-white/10 bg-white/5 px-2 text-xs font-semibold text-slate-200 hover:bg-white/10">↩</button>
-                      </div>
-                    )}
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
@@ -1329,11 +1290,6 @@ export default function NewBookingPage() {
                       onChange={handleBookingTimeChange}
                       className="w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30 [color-scheme:dark]"
                     />
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
-                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">Branch</label>
-                    <select name="bookingBranch" value={form.bookingBranch} onChange={handleChange("bookingBranch")} className={`${sel} h-[42px] w-full rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white`}>{branches.map((b) => (<option key={b.code} value={b.code} className="text-slate-900">{b.name}</option>))}</select>
                   </div>
                 </div>
               </div>

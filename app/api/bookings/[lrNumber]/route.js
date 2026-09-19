@@ -61,11 +61,17 @@ export async function PUT(req, { params }) {
   return NextResponse.json({ booking: serializeBooking(booking) });
 }
 
+const DELETE_ROLES = new Set(["admin", "manager"]);
+
 // DELETE /api/bookings/:lrNumber
 export async function DELETE(_req, { params }) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!DELETE_ROLES.has(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { lrNumber } = await params;
@@ -76,5 +82,9 @@ export async function DELETE(_req, { params }) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ booking: serializeBooking(deleted) });
+  return NextResponse.json({
+    success: true,
+    message: "Booking deleted",
+    booking: serializeBooking(deleted),
+  });
 }

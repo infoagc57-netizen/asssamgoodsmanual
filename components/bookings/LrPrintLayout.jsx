@@ -89,33 +89,28 @@ function LRCopy({
 }) {
   const charges = {
     freight: compute("freight"),
-    fuelSurcharge: 0,
-    handling: compute("hamali"),
+    hamali: compute("hamali"),
     doorDelivery: compute("doorDelivery"),
-    packaging: compute("localCartageCharges"),
-    insurance: 0,
+    localCartageCharges: compute("localCartageCharges"),
+    localCartage: compute("localCartageCharges"),
     builtyCharge,
-    firstMile: 0,
-    codCharge: Number(codHandlingFee || 0) + Number(toPayBuiltyCharge || 0),
     otherCharges: compute("otherCharges"),
   };
 
   const subtotal = (
     Number(charges.freight)
-    + Number(charges.fuelSurcharge)
-    + Number(charges.handling)
+    + Number(charges.hamali)
     + Number(charges.doorDelivery)
-    + Number(charges.packaging)
-    + Number(charges.insurance)
+    + Number(charges.localCartageCharges || charges.localCartage)
     + Number(charges.builtyCharge)
-    + Number(charges.firstMile)
-    + Number(charges.codCharge)
     + Number(charges.otherCharges)
   );
 
   const gstRate = form.applyGst ? Number(form.gstRate ?? 5) : 0;
-  const gstAmount = form.applyGst ? Number(compute("gstOnFreight") || 0) : 0;
-  const grandTotalNum = Number(grandTotal) || (subtotal + gstAmount);
+  const gstAmount = form.applyGst
+    ? Math.round((subtotal * gstRate) / 100 * 100) / 100
+    : 0;
+  const grandTotalNum = subtotal + gstAmount;
 
   return (
     <article className="lr-copy">
@@ -267,19 +262,48 @@ function LRCopy({
                 </tr>
               </thead>
               <tbody>
-                <tr><td className="col-sn">1</td><td>Basic Freight Charges</td><td className="col-amt">{amt(charges.freight)}</td></tr>
-                <tr><td className="col-sn">2</td><td>Fuel Surcharge</td><td className="col-amt">{amt(charges.fuelSurcharge)}</td></tr>
-                <tr><td className="col-sn">3</td><td>Handling Charges</td><td className="col-amt">{amt(charges.handling)}</td></tr>
-                <tr><td className="col-sn">4</td><td>Door Delivery Charges</td><td className="col-amt">{amt(charges.doorDelivery)}</td></tr>
-                <tr><td className="col-sn">5</td><td>Packaging Charges</td><td className="col-amt">{amt(charges.packaging)}</td></tr>
-                <tr><td className="col-sn">6</td><td>Insurance Charges</td><td className="col-amt">{amt(charges.insurance)}</td></tr>
-                <tr><td className="col-sn">7</td><td>Bilty / Documentation Charges</td><td className="col-amt">{amt(charges.builtyCharge)}</td></tr>
-                <tr><td className="col-sn">8</td><td>First Mile Pickup</td><td className="col-amt">{amt(charges.firstMile)}</td></tr>
-                <tr><td className="col-sn">9</td><td>COD / TO-PAY Charges</td><td className="col-amt">{amt(charges.codCharge)}</td></tr>
-                <tr><td className="col-sn">10</td><td>Other Charges</td><td className="col-amt">{amt(charges.otherCharges)}</td></tr>
-                <tr className="row-subtotal"><td></td><td>SUB TOTAL</td><td className="col-amt">{subtotal.toFixed(2)}</td></tr>
-                <tr className="row-gst"><td></td><td>GST @ {gstRate}%</td><td className="col-amt">{gstAmount.toFixed(2)}</td></tr>
-                <tr className="row-grand"><td></td><td>GRAND TOTAL</td><td className="col-amt">₹ {grandTotalNum.toFixed(2)}</td></tr>
+                <tr>
+                  <td className="col-sn">1</td>
+                  <td>Freight</td>
+                  <td className="col-amt">{amt(charges.freight)}</td>
+                </tr>
+                <tr>
+                  <td className="col-sn">2</td>
+                  <td>Hamali</td>
+                  <td className="col-amt">{amt(charges.hamali)}</td>
+                </tr>
+                <tr>
+                  <td className="col-sn">3</td>
+                  <td>Door Delivery</td>
+                  <td className="col-amt">{amt(charges.doorDelivery)}</td>
+                </tr>
+                <tr>
+                  <td className="col-sn">4</td>
+                  <td>Local Cartage Charges</td>
+                  <td className="col-amt">{amt(charges.localCartageCharges || charges.localCartage)}</td>
+                </tr>
+                <tr>
+                  <td className="col-sn">5</td>
+                  <td>Builty Charge</td>
+                  <td className="col-amt">{amt(charges.builtyCharge)}</td>
+                </tr>
+                <tr>
+                  <td className="col-sn">6</td>
+                  <td>Other Charges</td>
+                  <td className="col-amt">{amt(charges.otherCharges)}</td>
+                </tr>
+                <tr className="row-subtotal">
+                  <td colSpan={2}>SUB TOTAL</td>
+                  <td className="col-amt">{amt(subtotal)}</td>
+                </tr>
+                <tr className="row-gst">
+                  <td colSpan={2}>GST @ {gstRate}%</td>
+                  <td className="col-amt">{amt(gstAmount)}</td>
+                </tr>
+                <tr className="row-grand">
+                  <td colSpan={2}>GRAND TOTAL</td>
+                  <td className="col-amt">₹ {amt(grandTotalNum)}</td>
+                </tr>
               </tbody>
             </table>
 

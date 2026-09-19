@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import AppLayout from "../../../components/layout/AppLayout";
 import LrPrintLayout from "@/components/bookings/LrPrintLayout";
 
@@ -156,8 +157,12 @@ function DetailGrid({ items }) {
   );
 }
 
+const CAN_DELETE_ROLES = new Set(["admin", "manager"]);
+
 export default function BookingDetailsPage() {
   const params = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accountCustomerId, setAccountCustomerId] = useState("");
@@ -168,6 +173,12 @@ export default function BookingDetailsPage() {
   const [trackingError, setTrackingError] = useState("");
   const [editingTrackingId, setEditingTrackingId] = useState("");
   const [trackingMenuId, setTrackingMenuId] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmLr, setDeleteConfirmLr] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const canDeleteBooking = CAN_DELETE_ROLES.has(session?.user?.role);
 
   useEffect(() => {
     let cancelled = false;
@@ -304,6 +315,43 @@ export default function BookingDetailsPage() {
     persistTrackingHistory(trackingHistory.filter((item) => item.id !== entry.id));
   };
 
+  const openDeleteModal = () => {
+    setDeleteConfirmLr("");
+    setDeleteError("");
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteModalOpen(false);
+    setDeleteConfirmLr("");
+    setDeleteError("");
+  };
+
+  const handleDeleteBooking = async () => {
+    if (deleteConfirmLr.trim() !== String(booking.lrNumber).trim()) {
+      setDeleteError("LR number does not match. Type the exact LR number to confirm.");
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/bookings/${encodeURIComponent(booking.lrNumber)}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete booking");
+      }
+      sessionStorage.setItem("bookings_toast", data.message || "Booking deleted successfully");
+      router.push("/bookings");
+    } catch (err) {
+      setDeleteError(err.message || "Failed to delete booking");
+      setDeleting(false);
+    }
+  };
+
   return (
     <AppLayout>
     <>
@@ -320,6 +368,12 @@ export default function BookingDetailsPage() {
           <div className="flex flex-wrap gap-2">
             <a href="/bookings" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Back</a>
             <a
+              href={`/bookings/new?edit=true&lr=${encodeURIComponent(booking.lrNumber)}`}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Edit
+            </a>
+            <a
               href={`/bookings/${encodeURIComponent(booking.lrNumber)}/sticker`}
               target="_blank"
               rel="noopener noreferrer"
@@ -328,6 +382,15 @@ export default function BookingDetailsPage() {
               Print Sticker
             </a>
             <button type="button" onClick={() => window.print()} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Print LR</button>
+            {canDeleteBooking && (
+              <button
+                type="button"
+                onClick={openDeleteModal}
+                className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -495,6 +558,55 @@ export default function BookingDetailsPage() {
                   <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Save Update</button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {deleteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40" onClick={closeDeleteModal} aria-hidden="true" />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-booking-title"
+              className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+            >
+              <h3 id="delete-booking-title" className="text-lg font-bold text-red-700">Delete booking</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                This permanently removes LR <strong>{booking.lrNumber}</strong> and cannot be undone.
+              </p>
+              <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                Type LR number to confirm
+                <input
+                  type="text"
+                  value={deleteConfirmLr}
+                  onChange={(e) => setDeleteConfirmLr(e.target.value)}
+                  placeholder={booking.lrNumber}
+                  className="mt-1.5 h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-mono outline-none focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-100"
+                  autoComplete="off"
+                />
+              </label>
+              {deleteError && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{deleteError}</p>
+              )}
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  disabled={deleting}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteBooking}
+                  disabled={deleting || deleteConfirmLr.trim() !== String(booking.lrNumber).trim()}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleting ? "Deleting…" : "Delete booking"}
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -22,6 +22,21 @@ export default function BookingsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    const message = sessionStorage.getItem("bookings_toast");
+    if (message) {
+      setToast(message);
+      sessionStorage.removeItem("bookings_toast");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +72,12 @@ export default function BookingsPage() {
         <div><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: ORANGE }}>Operations</p><h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: NAVY }}>Bookings</h1><p className="mt-1 text-sm text-gray-500">Manage and track all your transport bookings</p></div>
         <a href="/bookings/new" className="inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>+ New Booking</a>
       </div>
+      {toast && (
+        <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+          {toast}
+        </div>
+      )}
+
       <div className="mb-5 grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:grid-cols-3">
         <input type="search" placeholder="Search by LR No, Customer, Vehicle..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-[42px] rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-orange-300 focus:bg-white" />
         <div className="flex gap-2"><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-[42px] min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm" /><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-[42px] min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm" /></div>

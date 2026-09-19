@@ -33,6 +33,22 @@ const matchesGeneralStation = (rate, station) => {
 
 const titleCaseStation = (station) => String(station || "").trim().replace(/\b\w/g, (char) => char.toUpperCase());
 
+const readRatesFromStorage = () => {
+  try {
+    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const mergeRateRecords = (lists) => {
+  const byId = new Map();
+  lists.flat().forEach((item) => {
+    if (item?.id) byId.set(item.id, item);
+  });
+  return Array.from(byId.values());
+};
+
 export default function RatesPage() {
   const [rates, setRates] = useState([]);
   const [search, setSearch] = useState("");
@@ -41,11 +57,7 @@ export default function RatesPage() {
   const [toast, setToast] = useState("");
 
   const loadRates = () => {
-    try {
-      setRates(JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]"));
-    } catch {
-      setRates([]);
-    }
+    setRates(readRatesFromStorage());
   };
 
   useEffect(() => { loadRates(); }, []);
@@ -57,7 +69,8 @@ export default function RatesPage() {
   }, [toast]);
 
   const handleImportRates = (parsedRates) => {
-    const existing = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
+    const fromStorage = readRatesFromStorage();
+    const existing = mergeRateRecords([fromStorage, rates]);
     const now = new Date().toISOString();
     const effectiveFrom = today();
     let importedCount = 0;
@@ -106,7 +119,10 @@ export default function RatesPage() {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRates));
     setRates(nextRates);
-    setToast(`${importedCount} rates imported successfully`);
+    const preserved = nextRates.length - importedCount;
+    setToast(
+      `${importedCount} rate(s) imported · ${nextRates.length} total (${preserved} existing preserved)`,
+    );
   };
 
   const disableRate = (id) => {

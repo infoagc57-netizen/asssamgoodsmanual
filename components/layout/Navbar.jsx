@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 import {
   Bell,
   Search,
@@ -13,8 +14,20 @@ import {
 export default function Navbar({ onMenuToggle, collapsed = false }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const openLogoutModal = () => {
+    setUserMenuOpen(false);
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutModal(false);
+    signOut({ callbackUrl: "/login" });
+  };
 
   return (
+    <>
     <header className="agc-navbar sticky top-0 z-30 h-16 border-b border-[#E5E7EB] bg-white">
       <div className="grid h-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 sm:px-6">
         <button
@@ -85,7 +98,13 @@ export default function Navbar({ onMenuToggle, collapsed = false }) {
                     <a href="/settings" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">System Settings</a>
                   </div>
                   <div className="border-t border-[#E5E7EB] py-1">
-                    <a href="/logout" className="block px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">Sign out</a>
+                    <button
+                      type="button"
+                      onClick={openLogoutModal}
+                      className="block w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                    >
+                      Sign out
+                    </button>
                   </div>
                 </div>
               </>
@@ -94,5 +113,45 @@ export default function Navbar({ onMenuToggle, collapsed = false }) {
         </div>
       </div>
     </header>
+
+    {showLogoutModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div
+          className="absolute inset-0 bg-black/40"
+          onClick={() => setShowLogoutModal(false)}
+          aria-hidden="true"
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-modal-title"
+          className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-card-lg"
+        >
+          <h2 id="logout-modal-title" className="text-lg font-bold text-[#071B34]">
+            Log out?
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Are you sure you want to log out of AGC Manual ERP?
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowLogoutModal(false)}
+              className="inline-flex h-[42px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmLogout}
+              className="inline-flex h-[42px] items-center justify-center rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white hover:bg-rose-700"
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
