@@ -19,7 +19,7 @@ export async function GET(req) {
   await dbConnect();
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") || "";
-  const partyType = searchParams.get("partyType") || "";
+  const partyType = searchParams.get("partyType") || searchParams.get("type") || "";
   const limit = searchParams.get("limit") || "20";
 
   const parties = await searchParties({ q, partyType, limit });

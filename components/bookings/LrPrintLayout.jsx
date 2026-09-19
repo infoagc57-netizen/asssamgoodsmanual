@@ -187,7 +187,7 @@ function LRCopy({
           <h2>Consignee</h2>
           <p><b>Name</b><span>{printText(form.consigneeName)}</span></p>
           <p><b>Mobile</b><span>{printText(form.consigneeMobile)}</span></p>
-          <p><b>GST</b><span>{printText(form.consigneeGst)}</span></p>
+          <p><b>{form.consigneeIdType === "PAN" ? "PAN" : form.consigneeIdType === "Aadhaar" ? "Aadhaar" : "GST"}</b><span>{printText(form.consigneeIdNumber || form.consigneeGst)}</span></p>
           <p className="lr-party-address"><b>Address</b><span>{printText(form.consigneeAddress)}</span></p>
         </div>
       </div>

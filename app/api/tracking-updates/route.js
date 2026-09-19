@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { dbConnect } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import { serializeBooking } from "@/lib/serializeBooking";
-import { nextTrackingId } from "@/lib/trackingEvents";
+import { appendTrackingEntry } from "@/lib/appendTrackingUpdate";
 
 export const dynamic = "force-dynamic";
 
@@ -85,29 +85,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
-  const history = booking.trackingHistory || [];
-  const entry = {
-    id: nextTrackingId(history),
-    event,
-    status: event,
-    location,
-    remark,
-    branch: location,
-    note: remark,
-    createdAt: timestamp.toISOString(),
-    timestamp,
-  };
-
-  booking.trackingHistory = [...history, entry];
-
-  if (event === "Delivered") {
-    booking.status = "Delivered";
-  } else if (event === "Out for Delivery") {
-    booking.status = "Out for Delivery";
-  } else if (["Vehicle Departed", "Trip Arrived", "Bag Added to Trip"].includes(event)) {
-    booking.status = "In Transit";
-  }
-
+  appendTrackingEntry(booking, { event, location, remark, timestamp });
   await booking.save();
 
   return NextResponse.json({

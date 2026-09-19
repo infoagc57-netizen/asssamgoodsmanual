@@ -43,6 +43,7 @@ const menuSections = [
     title: "Operations",
     items: [
       { label: "Bookings", href: "/bookings", icon: ClipboardList },
+      { label: "Manifests", href: "/manifests", icon: FileText },
       { label: "Tracking Updates", href: "/tracking-updates", icon: Truck },
       { label: "Loading", href: "/loading", icon: Package },
       { label: "Trips", href: "/trips", icon: Route },
@@ -56,6 +57,7 @@ const menuSections = [
       { label: "Accounts", href: "/accounts", icon: Wallet },
       { label: "Invoices", href: "/invoices", icon: FileText },
       { label: "Reports", href: "/reports", icon: BarChart3 },
+      { label: "Monthly Report", href: "/reports/monthly", icon: FileText },
     ],
   },
   {

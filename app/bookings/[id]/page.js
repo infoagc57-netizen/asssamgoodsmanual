@@ -39,6 +39,8 @@ function bookingToPrintForm(booking) {
     consigneeName: consignee.name || "",
     consigneeMobile: consignee.mobile || "",
     consigneeGst: consignee.gst || "",
+    consigneeIdType: consignee.idType || (consignee.gst ? "GST" : "GST"),
+    consigneeIdNumber: consignee.idNumber || consignee.gst || "",
     consigneePincode: consignee.pincode || "",
     consigneeCity: consignee.city || "",
     consigneeState: consignee.state || "",
@@ -471,7 +473,7 @@ export default function BookingDetailsPage() {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <DetailCard title="Consignor"><DetailGrid items={[["Name", consignor.name], ["Mobile", consignor.mobile], ["GST", consignor.gst], ["Pincode", consignor.pincode], ["City", consignor.city], ["State", consignor.state], ["Address", consignor.address]]} /></DetailCard>
-          <DetailCard title="Consignee"><DetailGrid items={[["Name", consignee.name], ["Mobile", consignee.mobile], ["GST", consignee.gst], ["Pincode", consignee.pincode], ["City", consignee.city], ["State", consignee.state], ["Address", consignee.address]]} /></DetailCard>
+          <DetailCard title="Consignee"><DetailGrid items={[["Name", consignee.name], ["Mobile", consignee.mobile], ["ID Type", consignee.idType || (consignee.gst ? "GST" : "-")], [consignee.idType === "PAN" ? "PAN" : consignee.idType === "Aadhaar" ? "Aadhaar" : "GSTIN", consignee.idNumber || consignee.gst], ["Pincode", consignee.pincode], ["City", consignee.city], ["State", consignee.state], ["Address", consignee.address]]} /></DetailCard>
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">

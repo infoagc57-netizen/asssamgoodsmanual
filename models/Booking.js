@@ -57,6 +57,13 @@ const BookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    manifestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Manifest",
+      index: true,
+      default: null,
+    },
+    manifestNumber: { type: String, default: "" },
     trackingHistory: {
       type: [TrackingHistorySchema],
       default: [],

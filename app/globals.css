@@ -485,6 +485,21 @@ body {
     display: none !important;
   }
 
+  .manifest-screen {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+
+  .manifest-print-root {
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  .manifest-print-root article {
+    border: none !important;
+    padding: 0 !important;
+  }
+
   .lr-h-company {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1264,5 +1279,32 @@ body {
     font-size: 6pt;
     font-weight: 700;
     color: #000;
+  }
+
+  @page monthly-report {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .monthly-report-screen {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+
+  .monthly-report-root {
+    max-width: none !important;
+  }
+
+  .monthly-report-root .no-print {
+    display: none !important;
+  }
+
+  .monthly-report-root table {
+    font-size: 9pt;
+  }
+
+  .monthly-report-root th,
+  .monthly-report-root td {
+    padding: 4px 6px !important;
   }
 }

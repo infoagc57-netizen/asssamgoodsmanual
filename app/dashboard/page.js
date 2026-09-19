@@ -22,7 +22,7 @@ import AppLayout from "../../components/layout/AppLayout";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
-const STORAGE_KEYS = ["agc_bookings", "agc_trips", "agc_customers", "agc_branches", "agc_vehicles", "agc_ledger", "agc_payments", "agc_vendors"];
+const REFRESH_MS = 30_000;
 
 const emptySnapshot = {
   greeting: "Good day",
@@ -47,43 +47,11 @@ const emptySnapshot = {
   totalBookings: 0,
   activity: [],
   branchSnapshot: [],
+  generatedAt: null,
 };
-
-const readList = (key) => {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-};
-
-const bookingStatus = (booking) => booking?.status || "Booked";
-
-const isArrivedStatus = (status) => status === "Arrived at Branch" || status === "Arrived";
 
 const money = (value) =>
   `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const todayKey = () => {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
-};
-
-const bookingDay = (booking) => String(booking?.date || booking?.createdAt || "").slice(0, 10);
-
-const hasPod = (booking) => Boolean(booking?.pod) || (booking.trackingHistory || []).some((entry) => entry.event === "POD Received");
-
-const paymentKind = (booking) => {
-  const value = String(booking?.paymentType || "").trim().toLowerCase().replace(/\s+/g, "_");
-  if (value === "paid") return "paid";
-  if (value === "tbb") return "tbb";
-  return "to_pay";
-};
-
-const hireCost = (trip) => Number(trip?.hireAmount || trip?.vendorAmount || trip?.hireCharge || trip?.summary?.totalFreight || 0);
 
 const activityTime = (value) => {
   const stamp = Date.parse(value || "");
@@ -114,140 +82,12 @@ const activityTone = (title) => {
   return { bg: "bg-sky-50", fg: "text-sky-700" };
 };
 
-const loadSnapshot = () => {
-  const bookings = readList("agc_bookings");
-  const trips = readList("agc_trips");
-  const customers = readList("agc_customers");
-  const branches = readList("agc_branches");
-  const vehicles = readList("agc_vehicles");
-  const today = todayKey();
+function mergeStatsPayload(payload) {
   const now = new Date();
-
-  const statusCounts = { Booked: 0, Loaded: 0, "In Transit": 0, Arrived: 0, Delivered: 0 };
-  bookings.forEach((booking) => {
-    const status = bookingStatus(booking);
-    if (status === "Loaded") statusCounts.Loaded += 1;
-    else if (status === "In Transit") statusCounts["In Transit"] += 1;
-    else if (isArrivedStatus(status)) statusCounts.Arrived += 1;
-    else if (status === "Delivered") statusCounts.Delivered += 1;
-    else statusCounts.Booked += 1;
+  const activity = (payload.activity || []).map((item) => {
+    const time = activityTime(item.stamp);
+    return { ...item, stamp: time.label, sort: time.sort };
   });
-
-  const todays = bookings.filter((booking) => bookingDay(booking) === today);
-  const pendingPod = bookings.filter((booking) => {
-    const status = bookingStatus(booking);
-    return !hasPod(booking) && (status === "Delivered" || isArrivedStatus(status));
-  }).length;
-
-  const bookingActivity = bookings.map((booking) => {
-    const time = activityTime(booking.createdAt || booking.updatedAt || booking.date);
-    return {
-      id: `lr-${booking.lrNumber}`,
-      href: booking.lrNumber ? `/bookings/${encodeURIComponent(booking.lrNumber)}` : "/bookings",
-      title: `LR ${booking.lrNumber || "—"} booked`,
-      detail: [booking.consignor?.name, booking.route?.bookingBranch, bookingStatus(booking)].filter(Boolean).join(" · "),
-      stamp: time.label,
-      sort: time.sort,
-    };
-  });
-
-  const trackingActivity = bookings.flatMap((booking) =>
-    (booking.trackingHistory || []).map((entry) => {
-      const time = activityTime(entry.createdAt);
-      return {
-        id: `evt-${booking.lrNumber}-${entry.id}`,
-        href: booking.lrNumber ? `/bookings/${encodeURIComponent(booking.lrNumber)}` : "/bookings",
-        title: entry.event || "Tracking update",
-        detail: [`LR ${booking.lrNumber || "—"}`, entry.location, entry.remark].filter(Boolean).join(" · "),
-        stamp: time.label,
-        sort: time.sort,
-      };
-    }),
-  );
-
-  const activity = [...bookingActivity, ...trackingActivity]
-    .sort((a, b) => b.sort - a.sort)
-    .slice(0, 10);
-
-  const branchCounts = {};
-  bookings.forEach((booking) => {
-    const name = booking.route?.bookingBranch || "Unassigned";
-    branchCounts[name] = (branchCounts[name] || 0) + 1;
-  });
-  const namedBranches = branches.length
-    ? branches.map((branch) => ({
-        id: branch.id || branch.code || branch.name,
-        name: branch.name || branch.code || "Branch",
-        count: bookings.filter((booking) => {
-          const value = String(booking.route?.bookingBranch || "");
-          return value === branch.name || value === branch.code || value.includes(String(branch.name || ""));
-        }).length,
-      }))
-    : Object.entries(branchCounts).map(([name, count]) => ({ id: name, name, count }));
-  const maxBranch = Math.max(1, ...namedBranches.map((item) => item.count));
-  const branchSnapshot = namedBranches
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6)
-    .map((item) => ({ ...item, percent: Math.round((item.count / maxBranch) * 100) }));
-
-  const payments = readList("agc_payments");
-  const allocated = {};
-  const unallocated = {};
-  payments.forEach((payment) => {
-    const amount = Number(payment.amount || 0);
-    if (Array.isArray(payment.allocations) && payment.allocations.length) {
-      payment.allocations.forEach((item) => {
-        if (!item.lrNumber) return;
-        allocated[item.lrNumber] = (allocated[item.lrNumber] || 0) + Number(item.amount || 0);
-      });
-    } else if (payment.lrNumber) {
-      allocated[payment.lrNumber] = (allocated[payment.lrNumber] || 0) + amount;
-    } else if (payment.customerId) {
-      unallocated[payment.customerId] = (unallocated[payment.customerId] || 0) + amount;
-    }
-  });
-
-  const partyName = (booking) => {
-    const kind = paymentKind(booking);
-    if (kind === "to_pay") return String(booking?.consignee?.name || "").trim() || "Consignee";
-    return String(booking?.consignor?.name || "").trim() || "Consignor";
-  };
-  const customerIdFor = (name) => {
-    const match = customers.find((item) => String(item.name || "").trim().toLowerCase() === String(name || "").trim().toLowerCase());
-    return match?.id || `PARTY:${String(name || "").trim().toLowerCase()}`;
-  };
-
-  const draft = bookings.map((booking) => {
-    const kind = paymentKind(booking);
-    const debit = Number(booking.grandTotal || 0);
-    return {
-      lrNumber: booking.lrNumber,
-      kind,
-      customerId: customerIdFor(partyName(booking)),
-      date: booking.date || String(booking.createdAt || "").slice(0, 10),
-      debit,
-      credit: kind === "paid" ? debit : Math.min(debit, Number(allocated[booking.lrNumber] || 0)),
-    };
-  });
-  Object.entries(unallocated).forEach(([customerId, amount]) => {
-    let remaining = Number(amount || 0);
-    draft
-      .filter((entry) => entry.customerId === customerId && entry.kind !== "paid")
-      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
-      .forEach((entry) => {
-        if (remaining <= 0) return;
-        const due = Math.max(0, entry.debit - entry.credit);
-        const apply = Math.min(due, remaining);
-        entry.credit += apply;
-        remaining -= apply;
-      });
-  });
-  const toPayPending = draft.filter((entry) => entry.kind === "to_pay").reduce((total, entry) => total + Math.max(0, entry.debit - entry.credit), 0);
-  const tbbPending = draft.filter((entry) => entry.kind === "tbb").reduce((total, entry) => total + Math.max(0, entry.debit - entry.credit), 0);
-  const outstanding = toPayPending + tbbPending;
-  const vendorPayable = trips
-    .filter((trip) => trip.tripType === "Hire Vehicle" && !trip.vendorPaid)
-    .reduce((total, trip) => total + hireCost(trip), 0);
 
   return {
     greeting: greetingForHour(now.getHours()),
@@ -257,63 +97,86 @@ const loadSnapshot = () => {
       month: "long",
       year: "numeric",
     }),
-    todayBookings: todays.length,
-    todayRevenue: todays.reduce((total, booking) => total + Number(booking.grandTotal || 0), 0),
-    activeTrips: trips.filter((trip) => (trip.status || "Dispatched") !== "Closed").length,
-    totalTrips: trips.length,
-    inTransit: statusCounts["In Transit"],
-    delivered: statusCounts.Delivered,
-    pendingPod,
-    customers: customers.length,
-    branches: branches.length,
-    vehicles: vehicles.length,
-    outstanding,
-    toPayPending,
-    tbbPending,
-    vendorPayable,
-    booked: statusCounts.Booked,
-    loaded: statusCounts.Loaded,
-    arrived: statusCounts.Arrived,
-    totalBookings: bookings.length,
+    todayBookings: payload.todayBookings ?? 0,
+    todayRevenue: payload.todayRevenue ?? 0,
+    activeTrips: payload.activeTrips ?? 0,
+    totalTrips: payload.totalTrips ?? payload.activeTrips ?? 0,
+    inTransit: payload.inTransit ?? 0,
+    delivered: payload.delivered ?? 0,
+    pendingPod: payload.pendingPod ?? 0,
+    customers: payload.customers ?? 0,
+    branches: payload.branches ?? 0,
+    vehicles: payload.vehicles ?? 0,
+    outstanding: payload.outstanding ?? 0,
+    toPayPending: payload.toPayPending ?? 0,
+    tbbPending: payload.tbbPending ?? 0,
+    vendorPayable: payload.vendorPayable ?? 0,
+    booked: payload.booked ?? 0,
+    loaded: payload.loaded ?? 0,
+    arrived: payload.arrived ?? 0,
+    totalBookings: payload.totalBookings ?? 0,
     activity,
-    branchSnapshot,
+    branchSnapshot: payload.branchSnapshot ?? [],
+    generatedAt: payload.generatedAt ?? null,
   };
-};
+}
 
 export default function DashboardPage() {
   const [data, setData] = useState(emptySnapshot);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
-  const refresh = useCallback(() => {
-    setData(loadSnapshot());
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard/stats", { cache: "no-store" });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || "Failed to load dashboard stats");
+      }
+      setData(mergeStatsPayload(payload));
+      setFetchError("");
+    } catch (err) {
+      setFetchError(err.message || "Failed to load dashboard stats");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     refresh();
+    const interval = window.setInterval(refresh, REFRESH_MS);
     const onFocus = () => refresh();
     const onVisibility = () => {
       if (document.visibilityState === "visible") refresh();
     };
-    const onStorage = (event) => {
-      if (!event.key || STORAGE_KEYS.includes(event.key)) refresh();
-    };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("storage", onStorage);
     return () => {
+      window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("storage", onStorage);
     };
   }, [refresh]);
+
+  const lastUpdatedLabel = data.generatedAt
+    ? new Date(data.generatedAt).toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+    : "—";
 
   const kpis = [
     { label: "Today's Bookings", value: data.todayBookings, hint: "LRs created today", icon: ClipboardList, tone: "text-blue-600 bg-blue-50" },
     { label: "In Transit", value: data.inTransit, hint: "Shipments on the road", icon: Truck, tone: "text-orange-600 bg-orange-50" },
     { label: "Delivered", value: data.delivered, hint: "Closed deliveries", icon: PackageCheck, tone: "text-green-600 bg-green-50" },
     { label: "Pending POD", value: data.pendingPod, hint: "Arrived without POD", icon: FileCheck2, tone: "text-emerald-600 bg-emerald-50" },
-    { label: "Customers", value: data.customers, hint: "Master accounts", icon: Users, tone: "text-indigo-600 bg-indigo-50" },
-    { label: "Branches", value: data.branches, hint: "Operating locations", icon: Building2, tone: "text-slate-700 bg-slate-100" },
-    { label: "Vehicles", value: data.vehicles, hint: "Fleet registered", icon: Truck, tone: "text-orange-600 bg-orange-50" },
+    { label: "Customers", value: data.customers, hint: "Saved parties (MongoDB)", icon: Users, tone: "text-indigo-600 bg-indigo-50" },
+    { label: "Branches", value: data.branches, hint: "Origin branches with bookings", icon: Building2, tone: "text-slate-700 bg-slate-100" },
+    { label: "Total LRs", value: data.totalBookings, hint: "All bookings in system", icon: Truck, tone: "text-orange-600 bg-orange-50" },
   ];
 
   const financeCards = [
@@ -353,6 +216,10 @@ export default function DashboardPage() {
             <p className="mt-2 flex items-center gap-2 text-sm text-white/60">
               <CalendarDays className="h-4 w-4 shrink-0" />
               {data.todayLabel || "Today"}
+            </p>
+            <p className="mt-1 text-xs text-white/45">
+              Last updated: {loading && !data.generatedAt ? "Loading…" : lastUpdatedLabel}
+              {fetchError ? ` · ${fetchError}` : ""}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

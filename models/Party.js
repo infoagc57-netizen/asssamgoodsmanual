@@ -10,6 +10,8 @@ const PartySchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     mobile: { type: String, trim: true },
     gst: { type: String, trim: true, uppercase: true },
+    idType: { type: String, trim: true, default: "" },
+    idNumber: { type: String, trim: true, default: "" },
     pincode: { type: String, trim: true },
     city: { type: String, trim: true },
     state: { type: String, trim: true },

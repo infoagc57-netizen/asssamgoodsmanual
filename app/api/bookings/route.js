@@ -18,11 +18,15 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const branchId = searchParams.get("branchId");
   const status = searchParams.get("status");
+  const notInManifest = searchParams.get("notInManifest") === "1" || searchParams.get("notInManifest") === "true";
   const limit = parseInt(searchParams.get("limit") || "100", 10);
 
   const query = {};
   if (branchId) query.bookingBranchId = branchId;
   if (status) query.status = status;
+  if (notInManifest) {
+    query.$or = [{ manifestId: null }, { manifestId: { $exists: false } }];
+  }
 
   const bookings = await Booking.find(query)
     .sort({ createdAt: -1 })

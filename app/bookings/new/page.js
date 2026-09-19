@@ -16,6 +16,69 @@ const GST_RATE_OPTIONS = [0, 5, 12, 18, 28];
 const COD_HANDLING_FEE = 100;
 const DEFAULT_LR_CODE = "AGC";
 const DEFAULT_BOOKING_BRANCH = "Panchkula, Haryana";
+const CONSIGNEE_ID_TYPES = ["GST", "PAN", "Aadhaar"];
+
+const CONSIGNEE_ID_META = {
+  GST: {
+    label: "GSTIN",
+    placeholder: "15-character GSTIN",
+    inputMode: "text",
+    maxLength: 15,
+    normalize: (value) => String(value || "").replace(/\s/g, "").toUpperCase().slice(0, 15),
+  },
+  PAN: {
+    label: "PAN Number",
+    placeholder: "e.g. ABCDE1234F",
+    inputMode: "text",
+    maxLength: 10,
+    normalize: (value) => String(value || "").replace(/\s/g, "").toUpperCase().slice(0, 10),
+  },
+  Aadhaar: {
+    label: "Aadhaar Number",
+    placeholder: "12-digit Aadhaar",
+    inputMode: "numeric",
+    maxLength: 12,
+    normalize: (value) => String(value || "").replace(/\D/g, "").slice(0, 12),
+  },
+};
+
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const AADHAAR_PATTERN = /^\d{12}$/;
+
+const resolveConsigneeIdFromRecord = (consignee = {}) => {
+  const idType = consignee.idType || "GST";
+  const idNumber = String(consignee.idNumber || consignee.gst || "").trim();
+  return {
+    idType: CONSIGNEE_ID_TYPES.includes(idType) ? idType : "GST",
+    idNumber,
+    gst: idType === "GST" ? idNumber : String(consignee.gst || "").trim(),
+  };
+};
+
+const validateConsigneeId = (idType, idNumber) => {
+  const value = String(idNumber || "").trim();
+  if (!value) return { ok: true };
+  if (idType === "GST") {
+    const normalized = value.replace(/\s/g, "").toUpperCase();
+    return GSTIN_PATTERN.test(normalized)
+      ? { ok: true }
+      : { ok: false, message: "Enter a valid 15-character GSTIN." };
+  }
+  if (idType === "PAN") {
+    const normalized = value.replace(/\s/g, "").toUpperCase();
+    return PAN_PATTERN.test(normalized)
+      ? { ok: true }
+      : { ok: false, message: "Enter a valid PAN (e.g. ABCDE1234F)." };
+  }
+  if (idType === "Aadhaar") {
+    const digits = value.replace(/\D/g, "");
+    return AADHAAR_PATTERN.test(digits)
+      ? { ok: true }
+      : { ok: false, message: "Enter a valid 12-digit Aadhaar number." };
+  }
+  return { ok: true };
+};
 
 const getTodayDate = () => {
   const now = new Date();
@@ -228,7 +291,7 @@ export default function NewBookingPage() {
     lrNumber: String(FIRST_LR_NUMBER), lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
     consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
     consignorCity: "", consignorState: "", consignorAddress: "",
-    consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
+    consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
     consigneeCity: "", consigneeState: "", consigneeAddress: "",
     deliveryBranch: "", toStation: "", deliveryAt: "",
     rate: "", rateSource: "manual", rateType: "Per Kg",
@@ -415,7 +478,14 @@ export default function NewBookingPage() {
           consignorAddress: consignor.address || "",
           consigneeName: consignee.name || "",
           consigneeMobile: consignee.mobile || "",
-          consigneeGst: consignee.gst || "",
+          ...(() => {
+            const id = resolveConsigneeIdFromRecord(consignee);
+            return {
+              consigneeIdType: id.idType,
+              consigneeIdNumber: id.idNumber,
+              consigneeGst: id.gst,
+            };
+          })(),
           consigneePincode: consignee.pincode || "",
           consigneeCity: consignee.city || "",
           consigneeState: consignee.state || "",
@@ -519,6 +589,27 @@ export default function NewBookingPage() {
     if (RATE_TRIGGER_FIELDS.includes(field)) enableRateLookup();
   };
 
+  const handleConsigneeIdTypeChange = (event) => {
+    const idType = event.target.value;
+    setForm((previous) => ({
+      ...previous,
+      consigneeIdType: idType,
+      consigneeIdNumber: "",
+      consigneeGst: "",
+    }));
+  };
+
+  const handleConsigneeIdNumberChange = (event) => {
+    const idType = form.consigneeIdType || "GST";
+    const meta = CONSIGNEE_ID_META[idType] || CONSIGNEE_ID_META.GST;
+    const normalized = meta.normalize(event.target.value);
+    setForm((previous) => ({
+      ...previous,
+      consigneeIdNumber: normalized,
+      ...(idType === "GST" ? { consigneeGst: normalized } : { consigneeGst: "" }),
+    }));
+  };
+
   const handleFreightAutoRecalculate = () => {
     setForm((previous) => ({ ...previous, freightManuallyEdited: false }));
     setRateBadge(form.rateSource === "auto" ? "auto-general" : "");
@@ -609,6 +700,12 @@ export default function NewBookingPage() {
       [fields.pincode]: customer.pincode,
       [fields.city]: customer.city,
       [fields.state]: customer.state,
+      ...(role === "consignee"
+        ? {
+          consigneeIdType: "GST",
+          consigneeIdNumber: customer.gst || "",
+        }
+        : {}),
       paymentType: role === "consignor" && customer.defaultPayment ? customer.defaultPayment : previous.paymentType,
     }));
     setCustomerSearchRole("");
@@ -618,15 +715,23 @@ export default function NewBookingPage() {
   const applySavedParty = (role, party) => {
     const fields = customerRoleFields[role];
     const cityState = [party.city, party.state].filter(Boolean).join(", ");
+    const consigneeIdType = party.idType || (party.gst ? "GST" : "GST");
+    const consigneeIdNumber = party.idNumber || party.gst || "";
     setForm((previous) => ({
       ...previous,
       [fields.name]: party.name || "",
       [fields.mobile]: party.mobile || "",
-      [fields.gst]: party.gst || "",
+      [fields.gst]: role === "consignor" ? (party.gst || "") : (consigneeIdType === "GST" ? consigneeIdNumber : ""),
       [fields.address]: party.address || "",
       [fields.pincode]: party.pincode || "",
       [fields.city]: party.city || "",
       [fields.state]: party.state || "",
+      ...(role === "consignee"
+        ? {
+          consigneeIdType,
+          consigneeIdNumber,
+        }
+        : {}),
       ...(role === "consignor" && cityState ? { bookingBranch: cityState } : {}),
       ...(role === "consignee" && cityState
         ? { toStation: cityState, deliveryBranch: party.city || cityState }
@@ -649,11 +754,17 @@ export default function NewBookingPage() {
       partyType: role,
       name: form[fields.name].trim(),
       mobile: form[fields.mobile],
-      gst: form[fields.gst],
+      gst: role === "consignor" ? form[fields.gst] : (form.consigneeIdType === "GST" ? form.consigneeIdNumber : ""),
       pincode: form[fields.pincode],
       city: form[fields.city],
       state: form[fields.state],
       address: form[fields.address],
+      ...(role === "consignee"
+        ? {
+          idType: form.consigneeIdType || "GST",
+          idNumber: form.consigneeIdNumber || "",
+        }
+        : {}),
     };
     if (!payload.name) {
       window.alert("Party name is required to save.");
@@ -796,7 +907,7 @@ export default function NewBookingPage() {
       lrNumber: nextLr, lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
       consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
       consignorCity: "", consignorState: "", consignorAddress: "",
-      consigneeName: "", consigneeMobile: "", consigneeGst: "", consigneePincode: "",
+      consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
       consigneeCity: "", consigneeState: "", consigneeAddress: "",
       deliveryBranch: "", toStation: "", deliveryAt: "",
       rate: "", rateSource: "manual", rateType: "Per Kg",
@@ -997,7 +1108,9 @@ export default function NewBookingPage() {
     consignee: {
       name: form.consigneeName,
       mobile: form.consigneeMobile,
-      gst: form.consigneeGst,
+      idType: form.consigneeIdType || "GST",
+      idNumber: String(form.consigneeIdNumber || "").trim(),
+      gst: form.consigneeIdType === "GST" ? String(form.consigneeIdNumber || "").trim() : "",
       pincode: form.consigneePincode,
       city: form.consigneeCity,
       state: form.consigneeState,
@@ -1083,6 +1196,11 @@ export default function NewBookingPage() {
     }
     if (!form.consigneeName.trim()) {
       failValidation("Please enter the consignee name.", "consigneeName");
+      return;
+    }
+    const consigneeIdCheck = validateConsigneeId(form.consigneeIdType, form.consigneeIdNumber);
+    if (!consigneeIdCheck.ok) {
+      failValidation(consigneeIdCheck.message, "consigneeIdNumber");
       return;
     }
     if (!form.articles.trim()) {
@@ -1306,11 +1424,11 @@ export default function NewBookingPage() {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <Field label="Search party">
+                    <Field label="Saved party">
                       <PartySearchSelect
                         partyType="consignor"
                         onSelect={(party) => applySavedParty("consignor", party)}
-                        placeholder="Search saved consignor by name, mobile, or GST"
+                        placeholder="Select saved consignor…"
                         inputClassName={inp}
                       />
                     </Field>
@@ -1380,11 +1498,11 @@ export default function NewBookingPage() {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <Field label="Search party">
+                    <Field label="Saved party">
                       <PartySearchSelect
                         partyType="consignee"
                         onSelect={(party) => applySavedParty("consignee", party)}
-                        placeholder="Search saved consignee by name, mobile, or GST"
+                        placeholder="Select saved consignee…"
                         inputClassName={inp}
                       />
                     </Field>
@@ -1408,8 +1526,32 @@ export default function NewBookingPage() {
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Field label="Mobile"><input type="tel" placeholder="Mobile number" value={form.consigneeMobile} onChange={handleChange("consigneeMobile")} className={inp} /></Field>
-                      <Field label="GST"><input type="text" placeholder="GSTIN" value={form.consigneeGst} onChange={handleChange("consigneeGst")} className={inp} /></Field>
+                      <Field label="ID Type">
+                        <select
+                          name="consigneeIdType"
+                          value={form.consigneeIdType || "GST"}
+                          onChange={handleConsigneeIdTypeChange}
+                          className={sel}
+                        >
+                          {CONSIGNEE_ID_TYPES.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </Field>
                     </div>
+                    <Field label={(CONSIGNEE_ID_META[form.consigneeIdType] || CONSIGNEE_ID_META.GST).label}>
+                      <input
+                        type="text"
+                        name="consigneeIdNumber"
+                        inputMode={(CONSIGNEE_ID_META[form.consigneeIdType] || CONSIGNEE_ID_META.GST).inputMode}
+                        maxLength={(CONSIGNEE_ID_META[form.consigneeIdType] || CONSIGNEE_ID_META.GST).maxLength}
+                        placeholder={(CONSIGNEE_ID_META[form.consigneeIdType] || CONSIGNEE_ID_META.GST).placeholder}
+                        value={form.consigneeIdNumber}
+                        onChange={handleConsigneeIdNumberChange}
+                        className={inp}
+                        autoComplete="off"
+                      />
+                    </Field>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <Field label="Pincode">
                         <div className="relative">
