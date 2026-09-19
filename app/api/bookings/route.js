@@ -19,6 +19,7 @@ export async function GET(req) {
   const branchId = searchParams.get("branchId");
   const status = searchParams.get("status");
   const notInManifest = searchParams.get("notInManifest") === "1" || searchParams.get("notInManifest") === "true";
+  const notOnLoadingSheet = searchParams.get("notOnLoadingSheet") === "1" || searchParams.get("notOnLoadingSheet") === "true";
   const limit = parseInt(searchParams.get("limit") || "100", 10);
 
   const query = {};
@@ -26,6 +27,12 @@ export async function GET(req) {
   if (status) query.status = status;
   if (notInManifest) {
     query.$or = [{ manifestId: null }, { manifestId: { $exists: false } }];
+  }
+  if (notOnLoadingSheet) {
+    query.$and = [
+      ...(query.$and || []),
+      { $or: [{ loadingSheetId: null }, { loadingSheetId: { $exists: false } }] },
+    ];
   }
 
   const bookings = await Booking.find(query)

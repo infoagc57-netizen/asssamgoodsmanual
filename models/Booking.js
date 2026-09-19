@@ -64,6 +64,21 @@ const BookingSchema = new mongoose.Schema(
       default: null,
     },
     manifestNumber: { type: String, default: "" },
+    loadingSheetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "LoadingSheet",
+      index: true,
+      default: null,
+    },
+    loadingSheetNumber: { type: String, default: "" },
+    billingReady: { type: Boolean, default: false, index: true },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+      index: true,
+      default: null,
+    },
+    invoiceNumber: { type: String, default: "" },
     trackingHistory: {
       type: [TrackingHistorySchema],
       default: [],
