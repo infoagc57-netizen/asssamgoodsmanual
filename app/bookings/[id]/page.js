@@ -59,32 +59,14 @@ function bookingToPrintForm(booking) {
     dimensionUnit: dimensions.unit || "",
     dimensionPieces: dimensions.pieces ?? "",
     deliveryType: booking.deliveryType || "door",
+    applyGst: booking.charges?.applyGst ?? Number(booking.charges?.gstOnFreight) > 0,
+    gstRate: booking.charges?.gstRate ?? 5,
   };
 }
 
 function chargeCompute(charges) {
   return (field) => Number(charges?.[field] || 0);
 }
-
-const TRACKING_EVENTS = [
-  "Manifest Uploaded",
-  "Shipment Picked Up",
-  "Vehicle Departed from Client Location",
-  "Shipment Received at Origin Center",
-  "Weight Captured",
-  "Added to Bag",
-  "Bag Added to Trip",
-  "Vehicle Departed",
-  "Trip Arrived",
-  "Bag Received at Facility",
-  "Out for Delivery",
-  "Delivered",
-  "POD Received",
-  "Shipment On Hold",
-  "Shipment Damaged",
-];
-
-const emptyTrackingForm = { event: "", location: "", remark: "" };
 
 const trackingTone = (event) => {
   if (event === "Shipment Damaged") return "damaged";
@@ -128,11 +110,6 @@ function formatTrackingStamp(iso) {
   return `${day} • ${time}`;
 }
 
-function nextTrackingId(history) {
-  const highest = history.reduce((max, item) => Math.max(max, Number(String(item.id || "").replace("EVT", "")) || 0), 0);
-  return `EVT${String(highest + 1).padStart(3, "0")}`;
-}
-
 function DetailCard({ title, children }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -168,11 +145,6 @@ export default function BookingDetailsPage() {
   const [accountCustomerId, setAccountCustomerId] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("Pending");
   const [trackingHistory, setTrackingHistory] = useState([]);
-  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
-  const [trackingForm, setTrackingForm] = useState(emptyTrackingForm);
-  const [trackingError, setTrackingError] = useState("");
-  const [editingTrackingId, setEditingTrackingId] = useState("");
-  const [trackingMenuId, setTrackingMenuId] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmLr, setDeleteConfirmLr] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -240,80 +212,6 @@ export default function BookingDetailsPage() {
   const builtyCharge = Number(charges.builtyCharge) || 150;
   const toPayBuiltyCharge = Number(charges.toPayBuiltyCharge) || (booking.paymentType === "to_pay" ? 100 : 0);
   const codHandlingFee = Number(charges.codHandlingFee) || 0;
-
-  const persistTrackingHistory = async (nextHistory) => {
-    try {
-      const response = await fetch(`/api/bookings/${encodeURIComponent(booking.lrNumber)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingHistory: nextHistory }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        window.alert(data.error || "Unable to save tracking update.");
-        return;
-      }
-      setTrackingHistory(nextHistory);
-      setBooking(data.booking);
-    } catch {
-      window.alert("Unable to save tracking update.");
-    }
-  };
-
-  const openTrackingModal = (entry) => {
-    setTrackingError("");
-    setTrackingMenuId("");
-    if (entry) {
-      setEditingTrackingId(entry.id);
-      setTrackingForm({ event: entry.event || "", location: entry.location || "", remark: entry.remark || "" });
-    } else {
-      setEditingTrackingId("");
-      setTrackingForm(emptyTrackingForm);
-    }
-    setTrackingModalOpen(true);
-  };
-
-  const closeTrackingModal = () => {
-    setTrackingModalOpen(false);
-    setEditingTrackingId("");
-    setTrackingForm(emptyTrackingForm);
-    setTrackingError("");
-  };
-
-  const saveTrackingUpdate = (event) => {
-    event.preventDefault();
-    const selectedEvent = trackingForm.event.trim();
-    const location = trackingForm.location.trim();
-    if (!selectedEvent) {
-      setTrackingError("Please select an event.");
-      return;
-    }
-    if (!location) {
-      setTrackingError("Please enter a location.");
-      return;
-    }
-
-    if (editingTrackingId) {
-      persistTrackingHistory(trackingHistory.map((item) => item.id === editingTrackingId
-        ? { ...item, event: selectedEvent, location, remark: trackingForm.remark.trim() }
-        : item));
-    } else {
-      persistTrackingHistory([...trackingHistory, {
-        id: nextTrackingId(trackingHistory),
-        event: selectedEvent,
-        location,
-        remark: trackingForm.remark.trim(),
-        createdAt: new Date().toISOString(),
-      }]);
-    }
-    closeTrackingModal();
-  };
-
-  const deleteTrackingUpdate = (entry) => {
-    setTrackingMenuId("");
-    if (!window.confirm("Delete this tracking update?")) return;
-    persistTrackingHistory(trackingHistory.filter((item) => item.id !== entry.id));
-  };
 
   const openDeleteModal = () => {
     setDeleteConfirmLr("");
@@ -488,7 +386,9 @@ export default function BookingDetailsPage() {
         <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
             <h2 className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: NAVY }}>Tracking Updates</h2>
-            <button type="button" onClick={() => openTrackingModal()} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Add Tracking Update</button>
+            <a href="/tracking-updates" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Add update
+            </a>
           </div>
           <div className="p-5">
             {orderedTracking.length ? (
@@ -501,66 +401,24 @@ export default function BookingDetailsPage() {
                       <span className={`absolute -left-[2.55rem] flex h-8 w-8 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
                         <TrackingIcon event={entry.event} />
                       </span>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-medium text-slate-400">{formatTrackingStamp(entry.createdAt)}</p>
-                          <p className="mt-1 text-sm font-bold text-slate-900">{entry.event}</p>
-                          <p className="mt-1 text-sm text-slate-500">{entry.location}</p>
-                          {entry.remark ? <p className="mt-1 text-sm text-slate-600">{entry.remark}</p> : null}
-                        </div>
-                        <div className="relative">
-                          <button type="button" aria-label="Tracking actions" onClick={() => setTrackingMenuId((current) => current === entry.id ? "" : entry.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700">
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
-                          </button>
-                          {trackingMenuId === entry.id && (
-                            <>
-                              <button type="button" className="fixed inset-0 z-10 cursor-default" aria-label="Close menu" onClick={() => setTrackingMenuId("")} />
-                              <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-sm">
-                                <button type="button" onClick={() => openTrackingModal(entry)} className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-orange-50">Edit</button>
-                                <button type="button" onClick={() => deleteTrackingUpdate(entry)} className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50">Delete</button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-400">{formatTrackingStamp(entry.createdAt || entry.timestamp)}</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{entry.event || entry.status}</p>
+                        <p className="mt-1 text-sm text-slate-500">{entry.location || entry.branch}</p>
+                        {(entry.remark || entry.note) ? <p className="mt-1 text-sm text-slate-600">{entry.remark || entry.note}</p> : null}
                       </div>
                     </li>
                   );
                 })}
               </ol>
             ) : (
-              <p className="py-8 text-center text-sm text-slate-500">No tracking updates yet. Add the first shipment event.</p>
+              <p className="py-8 text-center text-sm text-slate-500">
+                No tracking updates yet.{" "}
+                <a href="/tracking-updates" className="font-semibold text-orange-600 hover:underline">Add one from Tracking Updates</a>.
+              </p>
             )}
           </div>
         </section>
-
-        {trackingModalOpen && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-5 py-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: NAVY }}>{editingTrackingId ? "Edit Tracking Update" : "Add Tracking Update"}</h3>
-              </div>
-              <form onSubmit={saveTrackingUpdate} className="space-y-4 p-5">
-                <label className="block text-xs font-semibold text-slate-700">Event *
-                  <select required value={trackingForm.event} onChange={(e) => setTrackingForm((previous) => ({ ...previous, event: e.target.value }))} className="mt-1.5 h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-orange-300 focus:bg-white">
-                    <option value="">Select event</option>
-                    {TRACKING_EVENTS.map((name) => <option key={name} value={name}>{name}</option>)}
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold text-slate-700">Location *
-                  <input required value={trackingForm.location} onChange={(e) => setTrackingForm((previous) => ({ ...previous, location: e.target.value }))} placeholder="Baddi_Barotiwala_L (Himachal Pradesh)" className="mt-1.5 h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-orange-300 focus:bg-white" />
-                </label>
-                <label className="block text-xs font-semibold text-slate-700">Remark
-                  <textarea rows="3" value={trackingForm.remark} onChange={(e) => setTrackingForm((previous) => ({ ...previous, remark: e.target.value }))} placeholder="Optional note" className="mt-1.5 min-h-[88px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-300 focus:bg-white" />
-                </label>
-                {trackingError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{trackingError}</p>}
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={closeTrackingModal} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-                  <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: ORANGE }}>Save Update</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {deleteModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

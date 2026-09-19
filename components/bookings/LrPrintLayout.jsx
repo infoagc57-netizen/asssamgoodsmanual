@@ -97,7 +97,7 @@ function LRCopy({
     otherCharges: compute("otherCharges"),
   };
 
-  const subtotal = (
+  const fareLineSubtotal = (
     Number(charges.freight)
     + Number(charges.hamali)
     + Number(charges.doorDelivery)
@@ -106,11 +106,23 @@ function LRCopy({
     + Number(charges.otherCharges)
   );
 
-  const gstRate = form.applyGst ? Number(form.gstRate ?? 5) : 0;
-  const gstAmount = form.applyGst
-    ? Math.round((subtotal * gstRate) / 100 * 100) / 100
-    : 0;
-  const grandTotalNum = subtotal + gstAmount;
+  const storedGst = Number(compute("gstOnFreight")) || 0;
+  const applyGst = Boolean(form.applyGst) || storedGst > 0;
+  const gstRate = applyGst ? Number(form.gstRate ?? 5) : 0;
+  const gstAmount = storedGst > 0
+    ? storedGst
+    : applyGst
+      ? Math.round((fareLineSubtotal * gstRate) / 100 * 100) / 100
+      : 0;
+
+  const storedGrandTotal = Number(grandTotal) || 0;
+  const grandTotalNum = storedGrandTotal > 0
+    ? storedGrandTotal
+    : fareLineSubtotal + gstAmount;
+
+  const subtotal = storedGrandTotal > 0
+    ? Math.round((grandTotalNum - gstAmount) * 100) / 100
+    : fareLineSubtotal;
 
   return (
     <article className="lr-copy">

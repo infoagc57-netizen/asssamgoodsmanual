@@ -43,6 +43,7 @@ const menuSections = [
     title: "Operations",
     items: [
       { label: "Bookings", href: "/bookings", icon: ClipboardList },
+      { label: "Tracking Updates", href: "/tracking-updates", icon: Truck },
       { label: "Loading", href: "/loading", icon: Package },
       { label: "Trips", href: "/trips", icon: Route },
       { label: "Deliveries", href: "/deliveries", icon: PackageCheck },
