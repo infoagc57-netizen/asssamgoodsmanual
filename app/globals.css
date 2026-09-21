@@ -327,6 +327,8 @@ body {
     page: lr-sheet;
     display: flex !important;
     flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
     width: 100% !important;
     max-width: 200mm !important;
     height: 281mm !important;
@@ -334,8 +336,8 @@ body {
     max-height: 281mm !important;
     page-break-after: always !important;
     break-after: page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
     margin: 0 auto !important;
     padding: 0 !important;
     position: relative !important;
@@ -352,26 +354,33 @@ body {
     display: block !important;
     position: relative !important;
     box-sizing: border-box;
-    flex: 0 0 138mm;
+    flex: 0 0 138mm !important;
     width: 100% !important;
     max-width: 100% !important;
     height: 138mm !important;
     min-height: 138mm !important;
     max-height: 138mm !important;
     overflow: hidden !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    padding: 2mm 3mm !important;
+    contain: layout style paint !important;
+    /* Do not avoid break inside — unscaled content was forcing 1 copy per printed page */
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    padding: 0 !important;
     margin: 0 !important;
     border: none !important;
     background: #fff;
   }
 
   .lr-print-container--portrait-dual .lr-copy-inner {
-    transform: scale(0.66) !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: scale(0.58) !important;
     transform-origin: top left !important;
-    width: 151.52% !important;
-    max-width: 151.52% !important;
+    width: calc(100% / 0.58) !important;
+    max-width: calc(100% / 0.58) !important;
+    padding: 2mm 3mm !important;
+    box-sizing: border-box !important;
   }
 
   .lr-cut-line {
