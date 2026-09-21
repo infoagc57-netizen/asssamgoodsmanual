@@ -489,7 +489,7 @@ body {
   .lr-tc-fill .lr-tc-title {
     margin-bottom: 3px;
     color: #071b34;
-    font-size: 8pt;
+    font-size: 9pt;
     font-weight: 700;
     letter-spacing: 0.3px;
     text-transform: uppercase;
@@ -498,9 +498,10 @@ body {
   .lr-tc-fill .lr-tc-list {
     margin: 0;
     padding-left: 1.1em;
-    color: #333;
-    font-size: 7pt;
-    line-height: 1.25;
+    color: #000;
+    font-size: 8pt;
+    font-weight: 600;
+    line-height: 1.35;
   }
 
   .lr-tc-fill .lr-tc-list li {
@@ -606,10 +607,12 @@ body {
   }
 
   .lr-h-details p {
+    font-size: 8pt !important;
+    line-height: 1.3 !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    margin: 0 0 0.5mm 0 !important;
     white-space: nowrap !important;
-    font-size: 7pt !important;
-    line-height: 1.4 !important;
-    margin: 0 !important;
     padding: 0 !important;
     text-align: right !important;
     overflow: visible !important;
@@ -1109,8 +1112,10 @@ body {
   }
 
   .lr-tc-line {
-    font-size: 7.5pt;
-    line-height: 1.2;
+    font-size: 8.5pt;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #000;
     margin: 0;
     break-inside: avoid;
   }
