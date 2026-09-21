@@ -9,6 +9,12 @@ const LR_COPIES = [
   { type: "OFFICE", color: "#6B7280", label: "OFFICE COPY" },
 ];
 
+/** Portrait A4: 2 copies per page (Consignor+Consignee, Driver+Office) */
+const LR_PRINT_PAGES = [
+  [LR_COPIES[0], LR_COPIES[1]],
+  [LR_COPIES[2], LR_COPIES[3]],
+];
+
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
 const BELOW_TWENTY = [
@@ -368,10 +374,15 @@ export default function LrPrintLayout(props) {
 
   return (
     <section className="lr-print-sheet" aria-label="Assam Goods Carrier LR print view">
-      <div className="lr-print-container">
-        {LR_COPIES.map((copy) => (
-          <div key={copy.type} className="lr-print-page">
-            <LRCopy copy={copy} {...copyProps} />
+      <div className="lr-print-container lr-print-container--portrait-dual">
+        {LR_PRINT_PAGES.map((pageCopies) => (
+          <div key={pageCopies.map((c) => c.type).join("-")} className="lr-print-page">
+            <LRCopy copy={pageCopies[0]} {...copyProps} />
+            <div className="lr-cut-line" aria-hidden="true">
+              <span className="lr-cut-line-icon">✂</span>
+              <span className="lr-cut-line-dash" />
+            </div>
+            <LRCopy copy={pageCopies[1]} {...copyProps} />
           </div>
         ))}
       </div>

@@ -237,8 +237,8 @@ body {
   }
 
   @page lr-sheet {
-    size: A4 landscape;
-    margin: 0;
+    size: A4 portrait;
+    margin: 8mm 5mm;
   }
 
   @page sticker-portrait {
@@ -253,7 +253,7 @@ body {
 
   html:not(.printing-stickers),
   body:not(.printing-stickers) {
-    width: 297mm !important;
+    width: 210mm !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -295,8 +295,8 @@ body {
     left: 0 !important;
     top: 0 !important;
     right: auto !important;
-    width: 297mm !important;
-    max-width: 297mm !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -305,13 +305,13 @@ body {
   .lr-print-sheet,
   .lr-print-container {
     display: block !important;
-    width: 297mm !important;
-    max-width: 297mm !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Package stickers: use /bookings/[id]/sticker — keep LR print to 4 landscape pages */
+  /* Package stickers: use /bookings/[id]/sticker — LR print is 2 portrait pages (dual copy) */
   .lr-print-section .lr-sticker-sheet {
     display: none !important;
     visibility: hidden !important;
@@ -325,17 +325,18 @@ body {
 
   .lr-print-page {
     page: lr-sheet;
-    display: block !important;
-    width: 297mm !important;
-    max-width: 297mm !important;
-    height: 210mm !important;
-    min-height: 210mm !important;
-    max-height: 210mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 200mm !important;
+    height: 281mm !important;
+    min-height: 281mm !important;
+    max-height: 281mm !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     position: relative !important;
     overflow: hidden !important;
@@ -347,22 +348,59 @@ body {
     break-after: auto !important;
   }
 
-  .lr-copy {
+  .lr-print-container--portrait-dual .lr-copy {
     display: block !important;
     position: relative !important;
     box-sizing: border-box;
-    width: 297mm !important;
-    max-width: 297mm !important;
-    height: 210mm !important;
-    min-height: 210mm !important;
-    max-height: 210mm !important;
+    flex: 0 0 138mm;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 138mm !important;
+    min-height: 138mm !important;
+    max-height: 138mm !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    padding: 6mm 8mm !important;
+    padding: 2mm 3mm !important;
     margin: 0 !important;
     border: none !important;
     background: #fff;
+  }
+
+  .lr-print-container--portrait-dual .lr-copy-inner {
+    transform: scale(0.66) !important;
+    transform-origin: top left !important;
+    width: 151.52% !important;
+    max-width: 151.52% !important;
+  }
+
+  .lr-cut-line {
+    flex: 0 0 5mm;
+    display: flex !important;
+    align-items: center;
+    gap: 2mm;
+    width: 100%;
+    height: 5mm !important;
+    min-height: 5mm !important;
+    max-height: 5mm !important;
+    margin: 0 !important;
+    padding: 0 1mm !important;
+    box-sizing: border-box;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .lr-cut-line-icon {
+    flex-shrink: 0;
+    color: #64748b;
+    font-size: 9pt;
+    line-height: 1;
+  }
+
+  .lr-cut-line-dash {
+    flex: 1;
+    height: 0;
+    border-top: 1px dashed #94a3b8;
   }
 
   .lr-watermark {
@@ -383,7 +421,6 @@ body {
   .lr-copy-inner {
     position: relative;
     z-index: 1;
-    transform: none !important;
     width: 100% !important;
     max-width: none !important;
     padding: 3mm 4mm !important;
@@ -468,10 +505,6 @@ body {
     grid-template-columns: 1.35fr 1fr;
     gap: 8px;
     align-items: end;
-  }
-
-  .lr-cut-line {
-    display: none !important;
   }
 
   aside.sidebar,

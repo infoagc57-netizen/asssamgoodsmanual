@@ -1,0 +1,330 @@
+.transport-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  overflow: hidden;
+  background: linear-gradient(165deg, #071b34 0%, #0a2544 45%, #071b34 100%);
+}
+
+.transport-scene__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.9) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.9) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 75%);
+}
+
+.transport-scene__glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.transport-scene__glow--orange {
+  top: -10%;
+  right: -5%;
+  width: 45%;
+  height: 45%;
+  background: rgba(249, 115, 22, 0.22);
+}
+
+.transport-scene__glow--blue {
+  bottom: 10%;
+  left: -10%;
+  width: 40%;
+  height: 35%;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.transport-scene__route {
+  position: absolute;
+  top: 18%;
+  left: 8%;
+  right: 8%;
+  height: 120px;
+  pointer-events: none;
+}
+
+.transport-scene__route-path {
+  fill: none;
+  stroke: rgba(249, 115, 22, 0.55);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 520;
+  stroke-dashoffset: 520;
+  animation: route-draw 4s ease-in-out infinite alternate;
+}
+
+@keyframes route-draw {
+  0% {
+    stroke-dashoffset: 520;
+    opacity: 0.4;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.transport-scene__pin {
+  fill: #f97316;
+  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.6));
+}
+
+.transport-scene__pin-pulse {
+  fill: rgba(249, 115, 22, 0.25);
+  animation: pin-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pin-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.15;
+  }
+}
+
+.transport-scene__packages {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.transport-scene__package {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.12);
+  animation: package-float linear infinite;
+}
+
+@keyframes package-float {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.12;
+  }
+  90% {
+    opacity: 0.08;
+  }
+  100% {
+    transform: translateY(-120px) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+.transport-scene__highway {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.35), transparent);
+}
+
+.transport-scene__road {
+  position: absolute;
+  bottom: 18%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.transport-scene__dashes {
+  position: absolute;
+  bottom: calc(18% + 1px);
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.55) 0,
+    rgba(255, 255, 255, 0.55) 24px,
+    transparent 24px,
+    transparent 48px
+  );
+  background-size: 48px 2px;
+  animation: dash-scroll 0.8s linear infinite;
+}
+
+@keyframes dash-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 48px 0;
+  }
+}
+
+.transport-scene__truck-wrap {
+  position: absolute;
+  bottom: 14%;
+  left: -140px;
+  width: 140px;
+  animation: truck-drive 28s linear infinite;
+}
+
+@keyframes truck-drive {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(100vw + 280px));
+  }
+}
+
+@media (min-width: 1024px) {
+  .transport-scene__truck-wrap {
+    animation-name: truck-drive-desktop;
+  }
+
+  @keyframes truck-drive-desktop {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(60vw + 280px));
+    }
+  }
+}
+
+.transport-scene__truck {
+  animation: truck-bounce 0.45s ease-in-out infinite;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes truck-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.transport-scene__brand {
+  position: relative;
+  z-index: 2;
+  padding: 2rem 2rem 1rem;
+  max-width: 32rem;
+}
+
+.transport-scene__tagline {
+  position: absolute;
+  bottom: 32%;
+  left: 2rem;
+  right: 2rem;
+  z-index: 2;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.3;
+}
+
+.transport-scene__tagline span {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(249, 115, 22, 0.95);
+}
+
+.login-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #071b34;
+}
+
+@media (min-width: 1024px) {
+  .login-page {
+    flex-direction: row;
+  }
+
+  .login-left {
+    flex: 0 0 60%;
+    min-height: 100vh;
+  }
+
+  .login-right {
+    flex: 0 0 40%;
+    min-height: 100vh;
+  }
+}
+
+.login-left {
+  position: relative;
+  flex: 1;
+  min-height: 42vh;
+}
+
+.login-left .transport-scene {
+  min-height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .login-left .transport-scene {
+    min-height: 100vh;
+    height: 100%;
+  }
+}
+
+.login-right {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: #071b34;
+}
+
+@media (min-width: 1024px) {
+  .login-right {
+    background: linear-gradient(180deg, #061528 0%, #071b34 100%);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 1.25rem;
+  background: #f5f7fa;
+  padding: 1.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+}
+
+@media (min-width: 640px) {
+  .login-card {
+    padding: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transport-scene__route-path,
+  .transport-scene__dashes,
+  .transport-scene__truck-wrap,
+  .transport-scene__truck,
+  .transport-scene__package,
+  .transport-scene__pin-pulse {
+    animation: none !important;
+  }
+
+  .transport-scene__route-path {
+    stroke-dashoffset: 0;
+  }
+}
