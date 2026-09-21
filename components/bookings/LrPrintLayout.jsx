@@ -326,9 +326,12 @@ function LRCopy({
               </tbody>
             </table>
 
-            <div className="lr-words">
-              <div className="lr-words-label">AMOUNT IN WORDS:</div>
-              <div className="lr-words-value">{numberToWords(grandTotalNum)}</div>
+            <div className="lr-grand-banner" aria-label="Grand total">
+              <div className="lr-grand-banner-head">
+                <span className="lr-grand-banner-label">TOTAL AMOUNT</span>
+                <span className="lr-grand-banner-amount">₹ {amt(grandTotalNum)}</span>
+              </div>
+              <div className="lr-grand-banner-words">{numberToWords(grandTotalNum)}</div>
             </div>
 
             <div className="lr-stamp-box">

@@ -232,12 +232,14 @@ body {
 
 @media print {
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
+    orientation: portrait;
     margin: 0;
   }
 
   @page lr-sheet {
     size: A4 portrait;
+    orientation: portrait;
     margin: 0;
   }
 
@@ -291,6 +293,7 @@ body {
   }
 
   .lr-print-section {
+    page: lr-sheet;
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
@@ -363,7 +366,10 @@ body {
     page-break-inside: auto !important;
     break-inside: auto !important;
     margin: 0 !important;
+    flex-shrink: 0 !important;
     background: #fff;
+    border: 1.5px solid #000 !important;
+    border-radius: 0 !important;
   }
 
   .lr-print-section .lr-copy-fit {
@@ -376,10 +382,10 @@ body {
   }
 
   .lr-print-section .lr-copy-inner {
-    transform: scale(0.52) !important;
-    transform-origin: top left !important;
-    width: calc(100% / 0.52) !important;
-    max-width: calc(100% / 0.52) !important;
+    zoom: 0.68 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
     display: block !important;
     position: relative !important;
@@ -956,26 +962,48 @@ body {
     text-align: center;
   }
 
-  .lr-words {
-    padding: 4px 6px;
-    border-top: 1px solid #071b34;
+  .lr-grand-banner {
+    margin-top: 4px;
+    padding: 4px 6px 5px;
+    border: 2px solid #071b34;
+    background: linear-gradient(180deg, #fff7ed 0%, #fff 45%);
+    box-sizing: border-box;
   }
 
-  .lr-words-label {
-    color: #666;
+  .lr-grand-banner-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding-bottom: 3px;
+    border-bottom: 2px solid #f97316;
+  }
+
+  .lr-grand-banner-label {
+    color: #071b34;
+    font-size: 11pt;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+
+  .lr-grand-banner-amount {
+    color: #c2410c;
+    font-size: 16pt;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .lr-grand-banner-words {
+    margin-top: 3px;
+    color: #0f172a;
     font-size: 7.5pt;
     font-weight: 700;
-    letter-spacing: 0.2px;
-    text-transform: uppercase;
-  }
-
-  .lr-words-value {
-    margin-top: 2px;
-    color: #000;
-    font-size: 8.5pt;
-    font-weight: 700;
     font-style: italic;
-    line-height: 1.25;
+    line-height: 1.2;
   }
 
   .lr-stamp-box {
