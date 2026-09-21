@@ -1,6 +1,7 @@
 "use client";
 
 import Code128Barcode from "./LrPrintBarcode";
+import LrUpiQr from "./LrUpiQr";
 
 const LR_COPIES = [
   { type: "CONSIGNOR", color: "#071B34", label: "CONSIGNOR COPY" },
@@ -334,9 +335,12 @@ function LRCopy({
               <div className="lr-grand-banner-words">{numberToWords(grandTotalNum)}</div>
             </div>
 
-            <div className="lr-stamp-box">
-              <div className="lr-stamp-label">RECEIVER&apos;S STAMP &amp; SIGNATURE</div>
-              <div className="lr-stamp-space" />
+            <div className="lr-pay-stamp-row">
+              <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} />
+              <div className="lr-stamp-box">
+                <div className="lr-stamp-label">RECEIVER&apos;S STAMP &amp; SIGNATURE</div>
+                <div className="lr-stamp-space" />
+              </div>
             </div>
           </section>
         </div>

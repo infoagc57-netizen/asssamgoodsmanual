@@ -1006,6 +1006,67 @@ body {
     line-height: 1.2;
   }
 
+  .lr-pay-stamp-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .lr-upi-qr {
+    flex-shrink: 0;
+    width: 32mm;
+    padding: 2px 3px 3px;
+    border: 1.5px solid #071b34;
+    background: #fff;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .lr-upi-qr-title {
+    font-size: 6.5pt;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #071b34;
+    line-height: 1.1;
+  }
+
+  .lr-upi-qr-img {
+    display: block;
+    width: 24mm;
+    height: 24mm;
+    margin: 2px auto 0;
+    image-rendering: pixelated;
+  }
+
+  .lr-upi-qr-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 2px;
+    line-height: 1.1;
+  }
+
+  .lr-upi-qr-apps {
+    font-size: 5.5pt;
+    font-weight: 700;
+    color: #c2410c;
+  }
+
+  .lr-upi-qr-id {
+    font-size: 5.5pt;
+    font-weight: 700;
+    color: #000;
+    word-break: break-all;
+  }
+
+  .lr-upi-qr-payee {
+    font-size: 5pt;
+    color: #334155;
+  }
+
   .lr-stamp-box {
     box-sizing: border-box;
     display: flex;
