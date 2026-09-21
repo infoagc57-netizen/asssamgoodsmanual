@@ -135,6 +135,7 @@ function LRCopy({
       {Number(form.codAmount) > 0 && (
         <div className="lr-watermark" aria-hidden="true">SELF</div>
       )}
+      <div className="lr-copy-fit">
       <div className="lr-copy-inner">
       <header className="lr-h-company">
         <div className="lr-h-logo">
@@ -362,6 +363,7 @@ function LRCopy({
         </div>
       </footer>
       </div>
+      </div>
     </article>
   );
 }
@@ -380,7 +382,7 @@ export default function LrPrintLayout(props) {
             <LRCopy copy={pageCopies[0]} {...copyProps} />
             <div className="lr-cut-line" aria-hidden="true">
               <span className="lr-cut-line-icon">✂</span>
-              <span className="lr-cut-line-dash" />
+              <span>Cut along dashed line</span>
             </div>
             <LRCopy copy={pageCopies[1]} {...copyProps} />
           </div>
