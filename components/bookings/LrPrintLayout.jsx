@@ -164,18 +164,20 @@ function LRCopy({
             </span>
           </div>
         </div>
-        <div className="lr-h-title-right">
-          <div className="lr-lr-block">
-            <span className="lr-label">LR NO.</span>
-            <strong>{lrNumber}</strong>
-            <Code128Barcode value={lrNumber} />
-          </div>
+        <div className="lr-h-title-datetime">
           <div className="lr-datetime-block">
             <span><b>Date</b>{printText(form.bookingDate)}</span>
             <span><b>Time</b>{printText(form.bookingTime)}</span>
           </div>
         </div>
-        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={55} />
+        <div className="lr-h-title-lr">
+          <div className="lr-lr-block">
+            <span className="lr-label">LR NO.</span>
+            <strong>{lrNumber}</strong>
+            <Code128Barcode value={lrNumber} />
+          </div>
+        </div>
+        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={72} />
       </div>
 
       <div className={`lr-route-row${form.deliveryType === "godown" ? " lr-route-row-godown" : ""}`}>
