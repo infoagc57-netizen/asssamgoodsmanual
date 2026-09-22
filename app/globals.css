@@ -520,6 +520,61 @@ body {
     align-items: end;
   }
 
+  .lr-footer-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .lr-godown-delivery-block {
+    border: 1px solid #f97316;
+    overflow: hidden;
+    break-inside: avoid;
+  }
+
+  .lr-godown-delivery-head {
+    background: #f97316;
+    color: #fff;
+    font-size: 8.5pt;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 6px;
+    line-height: 1.25;
+  }
+
+  .lr-godown-delivery-body {
+    padding: 4px 6px 5px;
+    background: #fffaf5;
+    font-size: 8.5pt;
+    line-height: 1.35;
+    color: #000;
+  }
+
+  .lr-godown-delivery-line,
+  .lr-godown-delivery-note {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .lr-godown-delivery-line b,
+  .lr-godown-delivery-note b {
+    display: inline-block;
+    min-width: 4.2em;
+    margin-right: 4px;
+  }
+
+  .lr-godown-delivery-line + .lr-godown-delivery-line {
+    margin-top: 2px;
+  }
+
+  .lr-godown-delivery-note {
+    margin-top: 4px;
+    font-size: 8pt;
+    color: #334155;
+  }
+
   aside.sidebar,
   .sidebar,
   header.agc-navbar,
