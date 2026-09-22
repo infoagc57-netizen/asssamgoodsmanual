@@ -686,7 +686,6 @@ body {
     overflow: visible !important;
   }
 
-  .lr-h-title,
   .lr-title-strip {
     display: grid;
     grid-template-columns: 1fr auto auto auto;
@@ -697,14 +696,41 @@ body {
     border-bottom: 1px solid #071b34;
   }
 
+  .lr-h-title {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto 1fr auto 1fr auto !important;
+    gap: 4mm !important;
+    align-items: center !important;
+    margin: 4px 0;
+    padding: 1.5mm 2mm !important;
+    border-bottom: 1px solid #071b34;
+  }
+
+  .lr-h-title-left {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .lr-h-title-datetime {
+    grid-column: 3;
+    justify-self: center;
+  }
+
+  .lr-h-title-lr {
+    grid-column: 5;
+    justify-self: center;
+  }
+
   .lr-title-strip .lr-payment-qr,
   .lr-h-title .lr-payment-qr {
-    margin-left: auto !important;
+    grid-column: 7;
+    justify-self: end;
+    margin-left: 0 !important;
     padding: 0.5mm !important;
     border: 1px solid #071B34 !important;
     border-radius: 1mm !important;
     background: #FFF !important;
-    align-self: start;
+    align-self: center;
     flex-shrink: 0;
   }
 
