@@ -732,8 +732,8 @@ body {
     background: #FFFFFF !important;
     align-self: center;
     flex-shrink: 0;
-    min-width: 24mm !important;
-    min-height: 24mm !important;
+    min-width: 20mm !important;
+    min-height: 20mm !important;
     box-sizing: border-box !important;
   }
 
@@ -746,8 +746,8 @@ body {
   }
 
   .lr-h-title .lr-payment-qr-canvas {
-    width: 22mm !important;
-    height: 22mm !important;
+    width: 18mm !important;
+    height: 18mm !important;
     display: block !important;
   }
 
