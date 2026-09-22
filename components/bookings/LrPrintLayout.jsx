@@ -131,13 +131,6 @@ function LRCopy({
     ? Math.round((grandTotalNum - gstAmount) * 100) / 100
     : fareLineSubtotal;
 
-  const godownMobileText = String(form.godownMobile || "").trim();
-  const godownAddressText = String(form.godownAddress || "").trim()
-    || (form.deliveryType === "godown" ? String(form.deliveryAt || "").trim() : "");
-  const showGodownDeliveryBlock = form.deliveryType === "godown"
-    || Boolean(godownAddressText)
-    || Boolean(godownMobileText);
-
   return (
     <article className="lr-copy">
       {Number(form.codAmount) > 0 && (
@@ -278,6 +271,19 @@ function LRCopy({
               ))}
             </ol>
           </div>
+          {form.deliveryType === "godown" && (
+            <div className="lr-godown-block">
+              <div className="lr-godown-title">GODOWN DELIVERY DETAILS</div>
+              <div className="lr-godown-row">
+                <span className="lr-godown-key">Address:</span>
+                <span className="lr-godown-val">{form.godownAddress || form.deliveryAt || "—"}</span>
+              </div>
+              <div className="lr-godown-row">
+                <span className="lr-godown-key">Mobile:</span>
+                <span className="lr-godown-val">{form.godownMobile || "—"}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="lr-main-right">
@@ -358,33 +364,10 @@ function LRCopy({
 
       <footer className="lr-copy-footer">
         <div className="lr-footer-duo">
-          <div className="lr-footer-main">
-            <div className="lr-tc-block" aria-label="Terms and conditions">
-              {LR_TERMS_ITEMS.map((line, index) => (
-                <p key={line} className="lr-tc-line">{`${index + 1}. ${line}`}</p>
-              ))}
-            </div>
-            {showGodownDeliveryBlock && (
-              <section className="lr-godown-delivery-block" aria-label="Godown delivery details">
-                <div className="lr-godown-delivery-head">
-                  🏭 Godown Delivery Details
-                </div>
-                <div className="lr-godown-delivery-body">
-                  <p className="lr-godown-delivery-line">
-                    <b>Address:</b>
-                    <span>{printText(godownAddressText, "—")}</span>
-                  </p>
-                  <p className="lr-godown-delivery-line">
-                    <b>Mobile:</b>
-                    <span>{printText(godownMobileText, "—")}</span>
-                  </p>
-                  <p className="lr-godown-delivery-note">
-                    <b>Note:</b>
-                    <span>This shipment must be delivered to the godown address above.</span>
-                  </p>
-                </div>
-              </section>
-            )}
+          <div className="lr-tc-block" aria-label="Terms and conditions">
+            {LR_TERMS_ITEMS.map((line, index) => (
+              <p key={line} className="lr-tc-line">{`${index + 1}. ${line}`}</p>
+            ))}
           </div>
           <div className="lr-signatures">
           <div className="lr-signature-slot">

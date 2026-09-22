@@ -36,6 +36,8 @@ const BookingSchema = new mongoose.Schema(
       type: String,
       default: "door",
     },
+    godownAddress: { type: String, default: "" },
+    godownMobile: { type: String, default: "" },
     grandTotal: {
       type: Number,
       default: 0,

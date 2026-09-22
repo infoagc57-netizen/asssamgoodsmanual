@@ -339,7 +339,7 @@ export default function NewBookingPage() {
         const deliveryType = deliveryTypeOverride ?? previous.deliveryType;
         const godownAddress = match.godownAddress || previous.godownAddress || "";
         const godownMobile = match.godownMobile || previous.godownMobile || "";
-        return {
+        const updates = {
           ...previous,
           rate: String(match.rate ?? ""),
           rateType: match.rateType || "Per Kg",
@@ -347,8 +347,11 @@ export default function NewBookingPage() {
           freightManuallyEdited: false,
           godownAddress,
           godownMobile,
-          ...(deliveryType === "godown" && godownAddress ? { deliveryAt: godownAddress } : {}),
         };
+        if (deliveryType === "godown" && godownAddress) {
+          updates.deliveryAt = godownAddress;
+        }
+        return updates;
       });
       setRateBadge("auto-general");
     } else {
@@ -506,8 +509,8 @@ export default function NewBookingPage() {
           deliveryBranch: route.deliveryBranch || "",
           toStation: route.toStation || route.deliveryBranch || "",
           deliveryAt: route.deliveryAt || "",
-          godownAddress: route.godownAddress || route.deliveryAt || "",
-          godownMobile: route.godownMobile || "",
+          godownAddress: record.godownAddress || route.godownAddress || route.deliveryAt || "",
+          godownMobile: record.godownMobile || route.godownMobile || "",
           rate: record.unitRate ? String(record.unitRate) : "",
           rateSource: record.rateSource || "manual",
           rateType: record.rateType || "Per Kg",
@@ -1127,6 +1130,8 @@ export default function NewBookingPage() {
     time: form.bookingTime,
     paymentType: form.paymentType,
     deliveryType: form.deliveryType || "door",
+    godownAddress: form.godownAddress || "",
+    godownMobile: form.godownMobile || "",
     grandTotal: displayTotal,
     consignor: {
       name: form.consignorName,
@@ -1719,7 +1724,12 @@ export default function NewBookingPage() {
                             let station = "";
                             setForm((previous) => {
                               station = previous.deliveryBranch || previous.toStation || previous.deliveryAt;
-                              return { ...previous, deliveryType: "godown" };
+                              const godownAddress = previous.godownAddress || "";
+                              return {
+                                ...previous,
+                                deliveryType: "godown",
+                                ...(godownAddress ? { deliveryAt: godownAddress } : {}),
+                              };
                             });
                             if (station) autoFillRate(station, "godown");
                             return;
@@ -1737,6 +1747,34 @@ export default function NewBookingPage() {
                       </button>
                     ))}
                   </div>
+                  {form.deliveryType === "godown" && (
+                    <div className="mt-4 grid gap-3 rounded-xl border border-orange-200 bg-orange-50/40 p-3 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-orange-700">
+                          Godown Address
+                        </label>
+                        <input
+                          type="text"
+                          value={form.godownAddress || ""}
+                          onChange={(e) => setForm({ ...form, godownAddress: e.target.value })}
+                          placeholder="Auto-filled from rate master"
+                          className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-orange-700">
+                          Godown Mobile
+                        </label>
+                        <input
+                          type="text"
+                          value={form.godownMobile || ""}
+                          onChange={(e) => setForm({ ...form, godownMobile: e.target.value })}
+                          placeholder="Auto-filled from rate master"
+                          className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

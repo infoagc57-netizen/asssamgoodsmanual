@@ -1183,6 +1183,44 @@ body {
     margin-top: 2px;
   }
 
+  .lr-godown-block {
+    border: 1.5px solid #F97316 !important;
+    background: #FFF7ED !important;
+    padding: 2mm 3mm !important;
+    margin-top: 2mm !important;
+    page-break-inside: avoid !important;
+  }
+
+  .lr-godown-title {
+    font-size: 9pt !important;
+    font-weight: 900 !important;
+    color: #F97316 !important;
+    text-transform: uppercase !important;
+    border-bottom: 1px solid #F97316 !important;
+    padding-bottom: 0.5mm !important;
+    margin-bottom: 1mm !important;
+  }
+
+  .lr-godown-row {
+    font-size: 9pt !important;
+    line-height: 1.4 !important;
+    color: #000 !important;
+    margin-bottom: 0.4mm !important;
+  }
+
+  .lr-godown-key {
+    font-weight: 800 !important;
+    color: #333 !important;
+    display: inline-block !important;
+    min-width: 18mm !important;
+    margin-right: 1.5mm !important;
+  }
+
+  .lr-godown-val {
+    font-weight: 600 !important;
+    color: #000 !important;
+  }
+
   .lr-signatures {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
