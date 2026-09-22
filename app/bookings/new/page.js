@@ -173,6 +173,16 @@ const readRates = () => {
 
 const normalizeStationKey = (value) => String(value || "").trim().toLowerCase().split(",")[0].trim();
 
+const stationKeysLooselyMatch = (destinationKey, rateKey) => {
+  if (!destinationKey || !rateKey) return false;
+  if (destinationKey === rateKey) return true;
+  const destFirst = destinationKey.split(/\s+/)[0];
+  const rateFirst = rateKey.split(/\s+/)[0];
+  if (destFirst && rateFirst && destFirst === rateFirst) return true;
+  if (destinationKey.startsWith(`${rateKey} `) || rateKey.startsWith(`${destinationKey} `)) return true;
+  return false;
+};
+
 const findGeneralRateByStation = (station) => {
   const key = normalizeStationKey(station);
   if (!key) return null;
@@ -180,7 +190,7 @@ const findGeneralRateByStation = (station) => {
     const isActive = (rate.status || "Active") === "Active";
     if (!isActive || !rate.generalRate) return false;
     const stationCandidates = [rate.toStation, rate.toBranchName, rate.toBranch].map(normalizeStationKey);
-    return stationCandidates.includes(key);
+    return stationCandidates.some((candidate) => stationKeysLooselyMatch(key, candidate));
   }) || null;
 };
 
@@ -331,7 +341,7 @@ export default function NewBookingPage() {
 
   const cityOptions = useMemo(() => INDIA_CITY_OPTIONS, []);
 
-  const autoFillRate = useCallback((station) => {
+  const autoFillRate = useCallback((station, deliveryTypeOverride) => {
     const key = normalizeStationKey(station);
     if (!key) {
       setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
@@ -339,14 +349,17 @@ export default function NewBookingPage() {
     }
     const match = findGeneralRateByStation(station);
     if (match) {
-      setForm((previous) => ({
-        ...previous,
-        rate: String(match.rate ?? ""),
-        rateType: match.rateType || "Per Kg",
-        rateSource: "auto",
-        freightManuallyEdited: false,
-        ...godownFieldsFromRate(previous.deliveryType, match),
-      }));
+      setForm((previous) => {
+        const deliveryType = deliveryTypeOverride ?? previous.deliveryType;
+        return {
+          ...previous,
+          rate: String(match.rate ?? ""),
+          rateType: match.rateType || "Per Kg",
+          rateSource: "auto",
+          freightManuallyEdited: false,
+          ...godownFieldsFromRate(deliveryType, match),
+        };
+      });
       setRateBadge("auto-general");
     } else {
       setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
@@ -1692,16 +1705,18 @@ export default function NewBookingPage() {
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setForm((previous) => {
-                          const deliveryType = option.value;
-                          const station = previous.deliveryBranch || previous.toStation;
-                          const match = deliveryType === "godown" ? findGeneralRateByStation(station) : null;
-                          return {
-                            ...previous,
-                            deliveryType,
-                            ...godownFieldsFromRate(deliveryType, match),
-                          };
-                        })}
+                        onClick={() => {
+                          if (option.value === "godown") {
+                            let station = "";
+                            setForm((previous) => {
+                              station = previous.deliveryBranch || previous.toStation || previous.deliveryAt;
+                              return { ...previous, deliveryType: "godown" };
+                            });
+                            if (station) autoFillRate(station, "godown");
+                            return;
+                          }
+                          setForm((previous) => ({ ...previous, deliveryType: option.value }));
+                        }}
                         className={`rounded-xl border px-4 py-3 text-left transition ${
                           form.deliveryType === option.value
                             ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
