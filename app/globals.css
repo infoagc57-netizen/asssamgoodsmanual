@@ -1183,42 +1183,57 @@ body {
     margin-top: 2px;
   }
 
-  .lr-godown-block {
+  .lr-godown-block-top {
+    display: flex !important;
+    align-items: stretch !important;
     border: 1.5px solid #F97316 !important;
     background: #FFF7ED !important;
-    padding: 2mm 3mm !important;
-    margin-top: 2mm !important;
+    margin: 1.5mm 0 !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
-  .lr-godown-title {
-    font-size: 9pt !important;
+  .lr-godown-block-top-title {
+    display: flex !important;
+    align-items: center !important;
+    padding: 1.5mm 3mm !important;
+    background: #F97316 !important;
+    color: #FFFFFF !important;
+    font-size: 8pt !important;
     font-weight: 900 !important;
-    color: #F97316 !important;
     text-transform: uppercase !important;
-    border-bottom: 1px solid #F97316 !important;
-    padding-bottom: 0.5mm !important;
-    margin-bottom: 1mm !important;
+    letter-spacing: 0.5px !important;
+    white-space: nowrap !important;
   }
 
-  .lr-godown-row {
-    font-size: 9pt !important;
-    line-height: 1.4 !important;
+  .lr-godown-block-top-body {
+    display: flex !important;
+    flex: 1 !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 1.5mm 3mm !important;
+    gap: 0.5mm !important;
+  }
+
+  .lr-godown-block-top-row {
+    font-size: 8.5pt !important;
+    line-height: 1.35 !important;
     color: #000 !important;
-    margin-bottom: 0.4mm !important;
+    display: flex !important;
+    gap: 2mm !important;
   }
 
-  .lr-godown-key {
+  .lr-godown-block-top-key {
     font-weight: 800 !important;
     color: #333 !important;
-    display: inline-block !important;
-    min-width: 18mm !important;
-    margin-right: 1.5mm !important;
+    min-width: 16mm !important;
+    flex-shrink: 0 !important;
   }
 
-  .lr-godown-val {
+  .lr-godown-block-top-val {
     font-weight: 600 !important;
     color: #000 !important;
+    word-break: break-word !important;
   }
 
   .lr-signatures {

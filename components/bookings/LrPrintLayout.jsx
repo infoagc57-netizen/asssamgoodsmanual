@@ -180,11 +180,23 @@ function LRCopy({
       <div className={`lr-route-row${form.deliveryType === "godown" ? " lr-route-row-godown" : ""}`}>
         <span><b>Booking Branch</b>{printText(form.bookingBranch)}</span>
         <span><b>Delivery Branch</b>{printText(form.deliveryBranch)}</span>
-        <span><b>{form.deliveryType === "godown" ? "Godown / Delivery At" : "Delivery At"}</b>{printText(form.deliveryAt)}</span>
-        {form.deliveryType === "godown" && (
-          <span><b>Godown Mobile</b>{printText(form.godownMobile)}</span>
-        )}
+        <span><b>Delivery At</b>{printText(form.deliveryAt)}</span>
       </div>
+      {form.deliveryType === "godown" && (
+        <div className="lr-godown-block-top">
+          <div className="lr-godown-block-top-title">GODOWN DELIVERY DETAILS</div>
+          <div className="lr-godown-block-top-body">
+            <div className="lr-godown-block-top-row">
+              <span className="lr-godown-block-top-key">Address:</span>
+              <span className="lr-godown-block-top-val">{form.godownAddress || form.deliveryAt || "—"}</span>
+            </div>
+            <div className="lr-godown-block-top-row">
+              <span className="lr-godown-block-top-key">Mobile:</span>
+              <span className="lr-godown-block-top-val">{form.godownMobile || "—"}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="lr-parties">
         <div className="lr-party">
@@ -271,19 +283,6 @@ function LRCopy({
               ))}
             </ol>
           </div>
-          {form.deliveryType === "godown" && (
-            <div className="lr-godown-block">
-              <div className="lr-godown-title">GODOWN DELIVERY DETAILS</div>
-              <div className="lr-godown-row">
-                <span className="lr-godown-key">Address:</span>
-                <span className="lr-godown-val">{form.godownAddress || form.deliveryAt || "—"}</span>
-              </div>
-              <div className="lr-godown-row">
-                <span className="lr-godown-key">Mobile:</span>
-                <span className="lr-godown-val">{form.godownMobile || "—"}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="lr-main-right">
