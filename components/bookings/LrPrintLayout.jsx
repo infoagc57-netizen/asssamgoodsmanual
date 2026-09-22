@@ -136,9 +136,6 @@ function LRCopy({
       {Number(form.codAmount) > 0 && (
         <div className="lr-watermark" aria-hidden="true">SELF</div>
       )}
-      <div className="lr-header-qr">
-        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={55} />
-      </div>
       <div className="lr-copy-fit">
       <div className="lr-copy-inner">
       <header className="lr-h-company">
@@ -178,6 +175,7 @@ function LRCopy({
             <span><b>Time</b>{printText(form.bookingTime)}</span>
           </div>
         </div>
+        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={55} />
       </div>
 
       <div className={`lr-route-row${form.deliveryType === "godown" ? " lr-route-row-godown" : ""}`}>

@@ -348,40 +348,6 @@ body {
     break-after: auto !important;
   }
 
-  .lr-header-qr {
-    position: absolute !important;
-    top: 2mm !important;
-    right: 2mm !important;
-    z-index: 5 !important;
-    background: #FFFFFF !important;
-    padding: 1mm !important;
-    border: 1px solid #071B34 !important;
-    border-radius: 1mm !important;
-  }
-
-  .lr-header-qr .lr-payment-qr-label {
-    font-size: 5pt !important;
-    margin-bottom: 0.5mm !important;
-  }
-
-  .lr-header-qr .lr-payment-qr-canvas {
-    width: 13mm !important;
-    height: 13mm !important;
-    display: block !important;
-  }
-
-  .lr-header-qr .lr-payment-qr-amount {
-    font-size: 6.5pt !important;
-    font-weight: 800 !important;
-    margin-top: 0.5mm !important;
-    text-align: center !important;
-  }
-
-  .lr-header-qr .lr-payment-qr-upi {
-    font-size: 4pt !important;
-    text-align: center !important;
-  }
-
   .lr-print-section .lr-copy {
     display: block !important;
     width: 210mm !important;
@@ -723,11 +689,46 @@ body {
   .lr-h-title,
   .lr-title-strip {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: start;
     margin: 4px 0;
     padding: 4px 2px;
     border-bottom: 1px solid #071b34;
+  }
+
+  .lr-title-strip .lr-payment-qr,
+  .lr-h-title .lr-payment-qr {
+    margin-left: auto !important;
+    padding: 0.5mm !important;
+    border: 1px solid #071B34 !important;
+    border-radius: 1mm !important;
+    background: #FFF !important;
+    align-self: start;
+    flex-shrink: 0;
+  }
+
+  .lr-h-title .lr-payment-qr-label {
+    font-size: 5pt !important;
+    margin-bottom: 0.3mm !important;
+  }
+
+  .lr-h-title .lr-payment-qr-canvas {
+    width: 12mm !important;
+    height: 12mm !important;
+    display: block !important;
+  }
+
+  .lr-h-title .lr-payment-qr-amount {
+    font-size: 6pt !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    margin-top: 0.3mm !important;
+  }
+
+  .lr-h-title .lr-payment-qr-upi {
+    font-size: 3.5pt !important;
+    text-align: center !important;
   }
 
   .lr-h-title-left h1 {
