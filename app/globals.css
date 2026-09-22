@@ -756,6 +756,10 @@ body {
     border: 1px solid #071b34;
   }
 
+  .lr-route-row.lr-route-row-godown {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+
   .lr-route-row span {
     padding: 6px 8px;
     border-right: 1px solid #071b34;

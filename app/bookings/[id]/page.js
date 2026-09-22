@@ -29,6 +29,7 @@ function bookingToPrintForm(booking) {
     bookingBranch: route.bookingBranch || "",
     deliveryBranch: route.deliveryBranch || "",
     deliveryAt: route.deliveryAt || "",
+    godownMobile: route.godownMobile || "",
     consignorName: consignor.name || "",
     consignorMobile: consignor.mobile || "",
     consignorGst: consignor.gst || "",

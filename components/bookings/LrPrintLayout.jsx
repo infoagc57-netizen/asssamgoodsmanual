@@ -177,10 +177,13 @@ function LRCopy({
         </div>
       </div>
 
-      <div className="lr-route-row">
+      <div className={`lr-route-row${form.deliveryType === "godown" ? " lr-route-row-godown" : ""}`}>
         <span><b>Booking Branch</b>{printText(form.bookingBranch)}</span>
         <span><b>Delivery Branch</b>{printText(form.deliveryBranch)}</span>
-        <span><b>Delivery At</b>{printText(form.deliveryAt)}</span>
+        <span><b>{form.deliveryType === "godown" ? "Godown / Delivery At" : "Delivery At"}</b>{printText(form.deliveryAt)}</span>
+        {form.deliveryType === "godown" && (
+          <span><b>Godown Mobile</b>{printText(form.godownMobile)}</span>
+        )}
       </div>
 
       <div className="lr-parties">

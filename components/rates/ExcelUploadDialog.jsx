@@ -24,19 +24,34 @@ const isAcceptedFile = (file) => {
   return false;
 };
 
+const STATION_HEADERS = new Set(["station"]);
+const RATE_HEADERS = new Set(["rate"]);
+const GODOWN_ADDRESS_HEADERS = new Set(["godown_address", "address", "godown", "delivery_address"]);
+const GODOWN_MOBILE_HEADERS = new Set(["godown_mobile", "mobile", "phone", "delivery_mobile"]);
+
 const findHeaderIndexes = (rows) => {
   for (let rowIndex = 0; rowIndex < Math.min(rows.length, 20); rowIndex += 1) {
     const row = rows[rowIndex];
     if (!Array.isArray(row)) continue;
     let stationIndex = -1;
     let rateIndex = -1;
+    let godownAddressIndex = -1;
+    let godownMobileIndex = -1;
     row.forEach((cell, cellIndex) => {
       const header = normalizeHeader(cell);
-      if (header === "station") stationIndex = cellIndex;
-      if (header === "rate") rateIndex = cellIndex;
+      if (STATION_HEADERS.has(header)) stationIndex = cellIndex;
+      if (RATE_HEADERS.has(header)) rateIndex = cellIndex;
+      if (GODOWN_ADDRESS_HEADERS.has(header)) godownAddressIndex = cellIndex;
+      if (GODOWN_MOBILE_HEADERS.has(header)) godownMobileIndex = cellIndex;
     });
     if (stationIndex >= 0 && rateIndex >= 0) {
-      return { headerRowIndex: rowIndex, stationIndex, rateIndex };
+      return {
+        headerRowIndex: rowIndex,
+        stationIndex,
+        rateIndex,
+        godownAddressIndex,
+        godownMobileIndex,
+      };
     }
   }
   return null;
@@ -70,7 +85,13 @@ const parseWorkbookRows = (workbook) => {
       skippedInvalidRate += 1;
       continue;
     }
-    parsed.push({ station, rate });
+    const godown_address = header.godownAddressIndex >= 0
+      ? String(row[header.godownAddressIndex] ?? "").trim()
+      : "";
+    const godown_mobile = header.godownMobileIndex >= 0
+      ? String(row[header.godownMobileIndex] ?? "").trim()
+      : "";
+    parsed.push({ station, rate, godown_address, godown_mobile });
   }
 
   return { parsed, skippedInvalidRate };
@@ -116,10 +137,10 @@ export default function ExcelUploadDialog({ open, onClose, onImport }) {
 
   const downloadTemplate = () => {
     const worksheet = XLSX.utils.aoa_to_sheet([
-      ["station", "rate"],
-      ["guwahati", 10],
-      ["tinshukhiya", 14],
-      ["dibrugarh", 13],
+      ["station", "rate", "godown_address", "godown_mobile"],
+      ["guwahati", 10, "Plot 5, GS Road, Guwahati", "9876543210"],
+      ["tinshukhiya", 14, "Main Bazaar, Tinsukhiya", "9876543211"],
+      ["dibrugarh", 13, "", ""],
     ]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Rates");
@@ -208,7 +229,8 @@ export default function ExcelUploadDialog({ open, onClose, onImport }) {
             Upload Rate Card
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Import general rates from Excel or CSV. Required columns: <strong>station</strong>, <strong>rate</strong>.
+            Import general rates from Excel or CSV. Required: <strong>station</strong>, <strong>rate</strong>.
+            Optional: <strong>godown_address</strong>, <strong>godown_mobile</strong> (2-column files still work).
           </p>
         </div>
 
@@ -253,6 +275,8 @@ export default function ExcelUploadDialog({ open, onClose, onImport }) {
                   <tr>
                     <th className="px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Station</th>
                     <th className="px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Rate</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Godown address</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Godown mobile</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -260,6 +284,10 @@ export default function ExcelUploadDialog({ open, onClose, onImport }) {
                     <tr key={`${row.station}-${index}`}>
                       <td className="px-4 py-2 font-medium text-slate-800">{row.station}</td>
                       <td className="px-4 py-2 text-slate-700">₹{Number(row.rate).toFixed(2)}</td>
+                      <td className="max-w-[200px] truncate px-4 py-2 text-slate-600" title={row.godown_address || ""}>
+                        {row.godown_address || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-slate-600">{row.godown_mobile || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

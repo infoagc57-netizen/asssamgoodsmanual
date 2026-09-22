@@ -55,6 +55,7 @@ export default function RatesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const loadRates = () => {
     setRates(readRatesFromStorage());
@@ -76,10 +77,12 @@ export default function RatesPage() {
     let importedCount = 0;
     const nextRates = [...existing];
 
-    parsedRates.forEach(({ station, rate }) => {
+    parsedRates.forEach(({ station, rate, godown_address, godown_mobile }) => {
       const trimmedStation = String(station || "").trim();
       const rateValue = Number(rate);
       if (!trimmedStation || !Number.isFinite(rateValue) || rateValue <= 0) return;
+      const godownAddress = String(godown_address || "").trim();
+      const godownMobile = String(godown_mobile || "").trim();
 
       const index = nextRates.findIndex((item) => matchesGeneralStation(item, trimmedStation));
       if (index >= 0) {
@@ -90,6 +93,8 @@ export default function RatesPage() {
           toBranchName: titleCaseStation(trimmedStation),
           rate: rateValue,
           rateType: nextRates[index].rateType || "Per Kg",
+          godownAddress: godownAddress || nextRates[index].godownAddress || "",
+          godownMobile: godownMobile || nextRates[index].godownMobile || "",
           effectiveFrom,
           status: "Active",
           updatedAt: now,
@@ -107,6 +112,8 @@ export default function RatesPage() {
           toBranchName: titleCaseStation(trimmedStation),
           rate: rateValue,
           rateType: "Per Kg",
+          godownAddress,
+          godownMobile,
           minFreight: 0,
           effectiveFrom,
           status: "Active",
@@ -129,6 +136,21 @@ export default function RatesPage() {
     const updated = rates.map((rate) => rate.id === id ? { ...rate, status: "Inactive", updatedAt: new Date().toISOString() } : rate);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     setRates(updated);
+  };
+
+  const requestDeleteRate = (rateId) => {
+    const rate = rates.find((item) => item.id === rateId);
+    if (!rate) return;
+    setDeleteTarget(rate);
+  };
+
+  const confirmDeleteRate = () => {
+    if (!deleteTarget?.id) return;
+    const updated = rates.filter((rate) => rate.id !== deleteTarget.id);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setRates(updated);
+    setDeleteTarget(null);
+    setToast("Rate deleted successfully");
   };
 
   const visible = rates.filter((rate) => {
@@ -201,8 +223,9 @@ export default function RatesPage() {
                         <a href={`/rates/${rate.id}`} className="mr-3 text-[#0B1F33] hover:text-orange-600">View</a>
                         <a href={`/rates/${rate.id}?edit=true`} className="mr-3 text-slate-500 hover:text-orange-600">Edit</a>
                         {rate.status !== "Inactive" && (
-                          <button type="button" onClick={() => disableRate(rate.id)} className="text-slate-500 hover:text-red-600">Disable</button>
+                          <button type="button" onClick={() => disableRate(rate.id)} className="mr-3 text-slate-500 hover:text-red-600">Disable</button>
                         )}
+                        <button type="button" onClick={() => requestDeleteRate(rate.id)} className="text-red-600 hover:text-red-700">Delete</button>
                       </td>
                     </tr>
                   )) : (
@@ -224,6 +247,43 @@ export default function RatesPage() {
         onClose={() => setUploadOpen(false)}
         onImport={handleImportRates}
       />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTarget(null)} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-rate-title"
+            className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-card-lg"
+          >
+            <h2 id="delete-rate-title" className="text-lg font-bold" style={{ color: NAVY }}>
+              Delete this rate?
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Remove rate for{" "}
+              <strong>{deleteTarget.toStation || deleteTarget.toBranchName || deleteTarget.toBranch || "Unknown"}</strong>
+              {" "}({deleteTarget.id})? This cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="inline-flex h-[42px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteRate}
+                className="inline-flex h-[42px] items-center justify-center rounded-xl bg-red-600 px-5 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

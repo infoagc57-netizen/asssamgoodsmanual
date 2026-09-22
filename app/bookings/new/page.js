@@ -171,6 +171,27 @@ const readRates = () => {
   }
 };
 
+const normalizeStationKey = (value) => String(value || "").trim().toLowerCase().split(",")[0].trim();
+
+const findGeneralRateByStation = (station) => {
+  const key = normalizeStationKey(station);
+  if (!key) return null;
+  return readRates().find((rate) => {
+    const isActive = (rate.status || "Active") === "Active";
+    if (!isActive || !rate.generalRate) return false;
+    const stationCandidates = [rate.toStation, rate.toBranchName, rate.toBranch].map(normalizeStationKey);
+    return stationCandidates.includes(key);
+  }) || null;
+};
+
+const godownFieldsFromRate = (deliveryType, match) => {
+  if (deliveryType !== "godown" || !match) return {};
+  const updates = {};
+  if (match.godownAddress) updates.deliveryAt = match.godownAddress;
+  if (match.godownMobile) updates.godownMobile = match.godownMobile;
+  return updates;
+};
+
 const normalizeBranchKey = (value) => String(value || "").trim().toLowerCase();
 
 const branchMatchesRate = (bookingValue, rateCode, rateName, branches) => {
@@ -293,7 +314,7 @@ export default function NewBookingPage() {
     consignorCity: "", consignorState: "", consignorAddress: "",
     consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
     consigneeCity: "", consigneeState: "", consigneeAddress: "",
-    deliveryBranch: "", toStation: "", deliveryAt: "",
+    deliveryBranch: "", toStation: "", deliveryAt: "", godownMobile: "",
     rate: "", rateSource: "manual", rateType: "Per Kg",
     articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
     invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
@@ -310,37 +331,26 @@ export default function NewBookingPage() {
 
   const cityOptions = useMemo(() => INDIA_CITY_OPTIONS, []);
 
-  const normalizeStation = (value) => String(value || "").trim().toLowerCase().split(",")[0].trim();
-
   const autoFillRate = useCallback((station) => {
-    const key = normalizeStation(station);
+    const key = normalizeStationKey(station);
     if (!key) {
       setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
       return;
     }
-    try {
-      const rateMaster = JSON.parse(window.localStorage.getItem(RATE_STORAGE_KEY) || "[]");
-      const match = rateMaster.find((rate) => {
-        const isActive = (rate.status || "Active") === "Active";
-        if (!isActive || !rate.generalRate) return false;
-        const stationCandidates = [rate.toStation, rate.toBranchName, rate.toBranch].map(normalizeStation);
-        return stationCandidates.includes(key);
-      });
-      if (match) {
-        setForm((previous) => ({
-          ...previous,
-          rate: String(match.rate ?? ""),
-          rateType: match.rateType || "Per Kg",
-          rateSource: "auto",
-          freightManuallyEdited: false,
-        }));
-        setRateBadge("auto-general");
-      } else {
-        setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
-        setRateBadge("missing");
-      }
-    } catch {
+    const match = findGeneralRateByStation(station);
+    if (match) {
+      setForm((previous) => ({
+        ...previous,
+        rate: String(match.rate ?? ""),
+        rateType: match.rateType || "Per Kg",
+        rateSource: "auto",
+        freightManuallyEdited: false,
+        ...godownFieldsFromRate(previous.deliveryType, match),
+      }));
+      setRateBadge("auto-general");
+    } else {
       setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
+      setRateBadge("missing");
     }
   }, []);
 
@@ -493,6 +503,7 @@ export default function NewBookingPage() {
           deliveryBranch: route.deliveryBranch || "",
           toStation: route.toStation || route.deliveryBranch || "",
           deliveryAt: route.deliveryAt || "",
+          godownMobile: route.godownMobile || "",
           rate: record.unitRate ? String(record.unitRate) : "",
           rateSource: record.rateSource || "manual",
           rateType: record.rateType || "Per Kg",
@@ -909,7 +920,7 @@ export default function NewBookingPage() {
       consignorCity: "", consignorState: "", consignorAddress: "",
       consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
       consigneeCity: "", consigneeState: "", consigneeAddress: "",
-      deliveryBranch: "", toStation: "", deliveryAt: "",
+      deliveryBranch: "", toStation: "", deliveryAt: "", godownMobile: "",
       rate: "", rateSource: "manual", rateType: "Per Kg",
       articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
       invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
@@ -1121,6 +1132,7 @@ export default function NewBookingPage() {
       deliveryBranch: form.deliveryBranch,
       toStation: form.toStation,
       deliveryAt: form.deliveryAt,
+      godownMobile: form.godownMobile || "",
     },
     unitRate: Number(form.rate) || 0,
     rateSource: form.rateSource,
@@ -1680,7 +1692,16 @@ export default function NewBookingPage() {
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setForm((previous) => ({ ...previous, deliveryType: option.value }))}
+                        onClick={() => setForm((previous) => {
+                          const deliveryType = option.value;
+                          const station = previous.deliveryBranch || previous.toStation;
+                          const match = deliveryType === "godown" ? findGeneralRateByStation(station) : null;
+                          return {
+                            ...previous,
+                            deliveryType,
+                            ...godownFieldsFromRate(deliveryType, match),
+                          };
+                        })}
                         className={`rounded-xl border px-4 py-3 text-left transition ${
                           form.deliveryType === option.value
                             ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
