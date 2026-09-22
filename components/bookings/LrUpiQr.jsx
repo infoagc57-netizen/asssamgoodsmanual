@@ -6,7 +6,7 @@ import { AGC_PAYEE_NAME, AGC_UPI_ID, buildUpiUrl } from "@/lib/upiQr";
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
-export default function LrUpiQr({ lrNumber, amount, size = 128 }) {
+export default function LrUpiQr({ lrNumber, amount, size = 128, compact: compactLayout }) {
   const [dataUrl, setDataUrl] = useState("");
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function LrUpiQr({ lrNumber, amount, size = 128 }) {
 
   if (!dataUrl) return null;
 
-  const compact = Number(size) > 0 && Number(size) <= 80;
+  const compact = compactLayout ?? (Number(size) > 0 && Number(size) <= 80);
 
   if (compact) {
     return (

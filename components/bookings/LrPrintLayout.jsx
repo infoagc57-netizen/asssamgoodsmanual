@@ -177,7 +177,7 @@ function LRCopy({
             <Code128Barcode value={lrNumber} />
           </div>
         </div>
-        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={72} />
+        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={120} compact />
       </div>
 
       <div className={`lr-route-row${form.deliveryType === "godown" ? " lr-route-row-godown" : ""}`}>
