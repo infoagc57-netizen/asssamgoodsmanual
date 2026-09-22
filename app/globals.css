@@ -348,6 +348,40 @@ body {
     break-after: auto !important;
   }
 
+  .lr-header-qr {
+    position: absolute !important;
+    top: 2mm !important;
+    right: 2mm !important;
+    z-index: 5 !important;
+    background: #FFFFFF !important;
+    padding: 1mm !important;
+    border: 1px solid #071B34 !important;
+    border-radius: 1mm !important;
+  }
+
+  .lr-header-qr .lr-payment-qr-label {
+    font-size: 5pt !important;
+    margin-bottom: 0.5mm !important;
+  }
+
+  .lr-header-qr .lr-payment-qr-canvas {
+    width: 13mm !important;
+    height: 13mm !important;
+    display: block !important;
+  }
+
+  .lr-header-qr .lr-payment-qr-amount {
+    font-size: 6.5pt !important;
+    font-weight: 800 !important;
+    margin-top: 0.5mm !important;
+    text-align: center !important;
+  }
+
+  .lr-header-qr .lr-payment-qr-upi {
+    font-size: 4pt !important;
+    text-align: center !important;
+  }
+
   .lr-print-section .lr-copy {
     display: block !important;
     width: 210mm !important;
@@ -486,10 +520,23 @@ body {
     min-height: 0;
   }
 
+  .lr-tc-line,
+  .lr-tc-fill .lr-tc-list li {
+    font-size: 7pt !important;
+    line-height: 1.25 !important;
+    margin-bottom: 0.3mm !important;
+  }
+
+  .lr-tc-fill .lr-tc-title,
+  .lr-tc-title {
+    font-size: 7.5pt !important;
+    margin-bottom: 0.5mm !important;
+  }
+
   .lr-tc-fill .lr-tc-title {
-    margin-bottom: 3px;
+    margin-bottom: 0.5mm !important;
     color: #071b34;
-    font-size: 9pt;
+    font-size: 7.5pt !important;
     font-weight: 700;
     letter-spacing: 0.3px;
     text-transform: uppercase;
@@ -901,14 +948,20 @@ body {
   }
 
   .lr-table th,
-  .lr-table td {
-    padding: 3px 4px;
+  .lr-table td,
+  .lr-goods-table td,
+  .lr-goods-table th,
+  .lr-weight-table td,
+  .lr-weight-table th,
+  .lr-charges-table td,
+  .lr-charges-table th {
+    padding: 1px 3px !important;
     border: 1px solid #071b34;
     overflow: hidden;
     text-align: center;
     vertical-align: middle;
     word-wrap: break-word;
-    line-height: 1.2;
+    line-height: 1.15 !important;
     font-size: 10pt;
   }
 
@@ -1024,7 +1077,8 @@ body {
     text-align: center;
   }
 
-  .lr-grand-banner {
+  .lr-grand-banner,
+  .lr-grand-total-banner {
     margin-top: 4px;
     padding: 4px 6px 5px;
     border: 2px solid #071b34;
@@ -1059,7 +1113,8 @@ body {
     white-space: nowrap;
   }
 
-  .lr-grand-banner-words {
+  .lr-grand-banner-words,
+  .lr-grand-total-words {
     margin-top: 3px;
     color: #0f172a;
     font-size: 7.5pt;
@@ -1068,12 +1123,36 @@ body {
     line-height: 1.2;
   }
 
+  .lr-grand-banner,
+  .lr-grand-total-banner {
+    padding: 1.5mm 3mm !important;
+    margin: 1.5mm 0 !important;
+  }
+
+  .lr-grand-banner-amount,
+  .lr-grand-total-amount {
+    font-size: 16pt !important;
+  }
+
+  .lr-grand-banner-words,
+  .lr-grand-total-words {
+    font-size: 7pt !important;
+  }
+
   .lr-pay-stamp-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 6px;
     margin-top: 4px;
+  }
+
+  .lr-pay-stamp-row--solo {
+    justify-content: flex-end;
+  }
+
+  .lr-pay-stamp-row--solo .lr-stamp-box {
+    width: 100%;
   }
 
   .lr-upi-qr {
@@ -1188,7 +1267,7 @@ body {
     align-items: stretch !important;
     border: 1.5px solid #F97316 !important;
     background: #FFF7ED !important;
-    margin: 1.5mm 0 !important;
+    margin: 1mm 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
@@ -1211,13 +1290,13 @@ body {
     flex: 1 !important;
     flex-direction: column !important;
     justify-content: center !important;
-    padding: 1.5mm 3mm !important;
-    gap: 0.5mm !important;
+    padding: 1mm 3mm !important;
+    gap: 0.3mm !important;
   }
 
   .lr-godown-block-top-row {
-    font-size: 8.5pt !important;
-    line-height: 1.35 !important;
+    font-size: 8pt !important;
+    line-height: 1.25 !important;
     color: #000 !important;
     display: flex !important;
     gap: 2mm !important;
@@ -1243,6 +1322,8 @@ body {
     align-items: end;
     margin: 0;
     padding: 0;
+    height: 12mm !important;
+    margin-top: 2mm !important;
   }
 
   .lr-signature-slot {
@@ -1255,14 +1336,14 @@ body {
   .lr-signature-pad {
     width: 100%;
     flex: 1;
-    min-height: 7mm;
+    min-height: 7mm !important;
     border-top: 1px solid #000;
   }
 
   .lr-signature-label {
     margin-top: 4px;
     color: #000;
-    font-size: 10pt;
+    font-size: 7.5pt !important;
     font-weight: 700;
     line-height: 1.2;
     text-align: center;

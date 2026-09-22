@@ -136,6 +136,9 @@ function LRCopy({
       {Number(form.codAmount) > 0 && (
         <div className="lr-watermark" aria-hidden="true">SELF</div>
       )}
+      <div className="lr-header-qr">
+        <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} size={55} />
+      </div>
       <div className="lr-copy-fit">
       <div className="lr-copy-inner">
       <header className="lr-h-company">
@@ -350,8 +353,7 @@ function LRCopy({
               <div className="lr-grand-banner-words">{numberToWords(grandTotalNum)}</div>
             </div>
 
-            <div className="lr-pay-stamp-row">
-              <LrUpiQr lrNumber={lrNumber} amount={grandTotalNum} />
+            <div className="lr-pay-stamp-row lr-pay-stamp-row--solo">
               <div className="lr-stamp-box">
                 <div className="lr-stamp-label">RECEIVER&apos;S STAMP &amp; SIGNATURE</div>
                 <div className="lr-stamp-space" />

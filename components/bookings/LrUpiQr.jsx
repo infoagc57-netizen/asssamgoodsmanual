@@ -4,7 +4,9 @@ import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { AGC_PAYEE_NAME, AGC_UPI_ID, buildUpiUrl } from "@/lib/upiQr";
 
-export default function LrUpiQr({ lrNumber, amount }) {
+const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
+
+export default function LrUpiQr({ lrNumber, amount, size = 128 }) {
   const [dataUrl, setDataUrl] = useState("");
 
   useEffect(() => {
@@ -21,17 +23,32 @@ export default function LrUpiQr({ lrNumber, amount }) {
       note: `LR ${lrNumber}`,
     });
 
+    const qrSize = Math.max(48, Number(size) || 128);
+
     QRCode.toDataURL(payload, {
-      width: 128,
+      width: qrSize,
       margin: 1,
       errorCorrectionLevel: "M",
       color: { dark: "#000000", light: "#ffffff" },
     })
       .then(setDataUrl)
       .catch(() => setDataUrl(""));
-  }, [lrNumber, amount]);
+  }, [lrNumber, amount, size]);
 
   if (!dataUrl) return null;
+
+  const compact = Number(size) > 0 && Number(size) <= 80;
+
+  if (compact) {
+    return (
+      <div className="lr-payment-qr" aria-label="UPI payment QR code">
+        <div className="lr-payment-qr-label">Pay via UPI</div>
+        <img src={dataUrl} alt="" className="lr-payment-qr-canvas" />
+        <div className="lr-payment-qr-amount">{money(amount)}</div>
+        <div className="lr-payment-qr-upi">{AGC_UPI_ID}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="lr-upi-qr" aria-label="UPI payment QR code">

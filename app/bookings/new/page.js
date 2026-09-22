@@ -7,6 +7,7 @@ import SearchableSelect from "../../../components/ui/SearchableSelect";
 import PartySearchSelect from "../../../components/bookings/PartySearchSelect";
 import { INDIA_CITY_OPTIONS } from "@/lib/indiaCities";
 import { loadRatesWithMigration } from "@/lib/rateClient";
+import { godownFieldsFromRateMaster } from "@/lib/rateStationMatch";
 
 const NAVY = "#071B34";
 const NAVY_LIGHT = "#14304D";
@@ -1319,6 +1320,28 @@ export default function NewBookingPage() {
   const deliveryTypeLabel = form.deliveryType === "godown" ? "GODOWN DELIVERY" : "DOOR DELIVERY";
   const currentLrNumber = /^79\d{8}$/.test(form.lrNumber) ? form.lrNumber : String(FIRST_LR_NUMBER);
 
+  const lrPrintForm = useMemo(() => {
+    const pseudoBooking = {
+      deliveryType: form.deliveryType,
+      godownAddress: form.godownAddress,
+      godownMobile: form.godownMobile,
+      route: {
+        deliveryBranch: form.deliveryBranch,
+        toStation: form.toStation,
+        deliveryAt: form.deliveryAt,
+        godownAddress: form.godownAddress,
+        godownMobile: form.godownMobile,
+      },
+    };
+    const { godownAddress, godownMobile } = godownFieldsFromRateMaster(pseudoBooking, rateMaster);
+    return {
+      ...form,
+      godownAddress,
+      godownMobile,
+      deliveryAt: form.deliveryAt || (form.deliveryType === "godown" ? godownAddress : ""),
+    };
+  }, [form, rateMaster]);
+
   // Compact operator inputs for counter-style booking screen
   const inp = "w-full h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-[14px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
   const inpRo = "w-full h-[42px] cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 text-[14px] font-medium text-slate-600";
@@ -2139,7 +2162,7 @@ export default function NewBookingPage() {
       <div className="lr-print-section">
         <LrPrintLayout
           lrNumber={currentLrNumber}
-          form={form}
+          form={lrPrintForm}
           paymentLabel={paymentLabel}
           deliveryTypeLabel={deliveryTypeLabel}
           actualWeight={actualWeight}

@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AppLayout from "../../../components/layout/AppLayout";
 import LrPrintLayout from "@/components/bookings/LrPrintLayout";
+import { fetchRatesFromApi } from "@/lib/rateClient";
+import { godownFieldsFromRateMaster } from "@/lib/rateStationMatch";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
@@ -17,20 +19,22 @@ const printText = (value, fallback = "-") => (
   value !== undefined && value !== null && String(value).trim() !== "" ? value : fallback
 );
 
-function bookingToPrintForm(booking) {
+function bookingToPrintForm(booking, rateMaster = []) {
   const route = booking.route || {};
   const consignor = booking.consignor || {};
   const consignee = booking.consignee || {};
   const goods = booking.goods || {};
   const dimensions = booking.dimensions || {};
+  const { godownAddress, godownMobile } = godownFieldsFromRateMaster(booking, rateMaster);
+  const deliveryAt = route.deliveryAt || (booking.deliveryType === "godown" ? godownAddress : "") || "";
   return {
     bookingDate: booking.date || "",
     bookingTime: booking.time || "",
     bookingBranch: route.bookingBranch || "",
     deliveryBranch: route.deliveryBranch || "",
-    deliveryAt: route.deliveryAt || "",
-    godownAddress: booking.godownAddress || route.godownAddress || "",
-    godownMobile: booking.godownMobile || route.godownMobile || "",
+    deliveryAt,
+    godownAddress,
+    godownMobile,
     consignorName: consignor.name || "",
     consignorMobile: consignor.mobile || "",
     consignorGst: consignor.gst || "",
@@ -153,8 +157,15 @@ export default function BookingDetailsPage() {
   const [deleteConfirmLr, setDeleteConfirmLr] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [rateMaster, setRateMaster] = useState([]);
 
   const canDeleteBooking = CAN_DELETE_ROLES.has(session?.user?.role);
+
+  useEffect(() => {
+    fetchRatesFromApi()
+      .then((rates) => setRateMaster(rates))
+      .catch(() => setRateMaster([]));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -502,7 +513,7 @@ export default function BookingDetailsPage() {
     <div className="lr-print-section">
       <LrPrintLayout
         lrNumber={booking.lrNumber}
-        form={bookingToPrintForm(booking)}
+        form={bookingToPrintForm(booking, rateMaster)}
         paymentLabel={paymentLabel(booking.paymentType)}
         deliveryTypeLabel={deliveryTypeLabel(booking.deliveryType)}
         actualWeight={actualWeight}
