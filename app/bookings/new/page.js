@@ -6,6 +6,7 @@ import LrPrintLayout from "../../../components/bookings/LrPrintLayout";
 import SearchableSelect from "../../../components/ui/SearchableSelect";
 import PartySearchSelect from "../../../components/bookings/PartySearchSelect";
 import { INDIA_CITY_OPTIONS } from "@/lib/indiaCities";
+import { loadRatesWithMigration } from "@/lib/rateClient";
 
 const NAVY = "#071B34";
 const NAVY_LIGHT = "#14304D";
@@ -145,7 +146,6 @@ const SectionCard = ({ title, subtitle, children, icon }) => (
   </div>
 );
 
-const RATE_STORAGE_KEY = "agc_rate_master";
 const RATE_TRIGGER_FIELDS = [
   "consignorName",
   "consignorMobile",
@@ -162,15 +162,6 @@ const RATE_TRIGGER_FIELDS = [
 
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-const readRates = () => {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(RATE_STORAGE_KEY) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-};
-
 const normalizeStationKey = (value) => String(value || "").trim().toLowerCase().split(",")[0].trim();
 
 const stationKeysLooselyMatch = (destinationKey, rateKey) => {
@@ -183,23 +174,16 @@ const stationKeysLooselyMatch = (destinationKey, rateKey) => {
   return false;
 };
 
-const findGeneralRateByStation = (station) => {
+const findGeneralRateByStation = (station, rates) => {
   const key = normalizeStationKey(station);
   if (!key) return null;
-  return readRates().find((rate) => {
+  const list = Array.isArray(rates) ? rates : [];
+  return list.find((rate) => {
     const isActive = (rate.status || "Active") === "Active";
     if (!isActive || !rate.generalRate) return false;
     const stationCandidates = [rate.toStation, rate.toBranchName, rate.toBranch].map(normalizeStationKey);
     return stationCandidates.some((candidate) => stationKeysLooselyMatch(key, candidate));
   }) || null;
-};
-
-const godownFieldsFromRate = (deliveryType, match) => {
-  if (deliveryType !== "godown" || !match) return {};
-  const updates = {};
-  if (match.godownAddress) updates.deliveryAt = match.godownAddress;
-  if (match.godownMobile) updates.godownMobile = match.godownMobile;
-  return updates;
 };
 
 const normalizeBranchKey = (value) => String(value || "").trim().toLowerCase();
@@ -252,8 +236,9 @@ const findMatchingRate = ({
   packages,
   customers,
   branches,
+  rates: rateList,
 }) => {
-  const rates = readRates().filter((rate) => (rate.status || "Active") === "Active");
+  const rates = (Array.isArray(rateList) ? rateList : []).filter((rate) => (rate.status || "Active") === "Active");
   const onRoute = rates.filter((rate) => (
     branchMatchesRate(bookingBranch, rate.fromBranch, rate.fromBranchName, branches)
     && branchMatchesRate(deliveryBranch, rate.toBranch, rate.toBranchName, branches)
@@ -304,6 +289,7 @@ export default function NewBookingPage() {
   const [rateLookupReady, setRateLookupReady] = useState(false);
   const [rateBadge, setRateBadge] = useState("");
   const [destinations, setDestinations] = useState([]);
+  const [rateMaster, setRateMaster] = useState([]);
   const [timeIsManual, setTimeIsManual] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState({
     consignor: false,
@@ -324,7 +310,7 @@ export default function NewBookingPage() {
     consignorCity: "", consignorState: "", consignorAddress: "",
     consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
     consigneeCity: "", consigneeState: "", consigneeAddress: "",
-    deliveryBranch: "", toStation: "", deliveryAt: "", godownMobile: "",
+    deliveryBranch: "", toStation: "", deliveryAt: "", godownAddress: "", godownMobile: "",
     rate: "", rateSource: "manual", rateType: "Per Kg",
     articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
     invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
@@ -347,17 +333,21 @@ export default function NewBookingPage() {
       setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
       return;
     }
-    const match = findGeneralRateByStation(station);
+    const match = findGeneralRateByStation(station, rateMaster);
     if (match) {
       setForm((previous) => {
         const deliveryType = deliveryTypeOverride ?? previous.deliveryType;
+        const godownAddress = match.godownAddress || previous.godownAddress || "";
+        const godownMobile = match.godownMobile || previous.godownMobile || "";
         return {
           ...previous,
           rate: String(match.rate ?? ""),
           rateType: match.rateType || "Per Kg",
           rateSource: "auto",
           freightManuallyEdited: false,
-          ...godownFieldsFromRate(deliveryType, match),
+          godownAddress,
+          godownMobile,
+          ...(deliveryType === "godown" && godownAddress ? { deliveryAt: godownAddress } : {}),
         };
       });
       setRateBadge("auto-general");
@@ -365,7 +355,7 @@ export default function NewBookingPage() {
       setForm((previous) => ({ ...previous, rate: "", rateSource: "manual" }));
       setRateBadge("missing");
     }
-  }, []);
+  }, [rateMaster]);
 
   const enableRateLookup = () => {
     setRateLookupReady(true);
@@ -516,6 +506,7 @@ export default function NewBookingPage() {
           deliveryBranch: route.deliveryBranch || "",
           toStation: route.toStation || route.deliveryBranch || "",
           deliveryAt: route.deliveryAt || "",
+          godownAddress: route.godownAddress || route.deliveryAt || "",
           godownMobile: route.godownMobile || "",
           rate: record.unitRate ? String(record.unitRate) : "",
           rateSource: record.rateSource || "manual",
@@ -582,24 +573,39 @@ export default function NewBookingPage() {
     try {
       setCustomers(JSON.parse(window.localStorage.getItem("agc_customers") || "[]"));
       setBranches(JSON.parse(window.localStorage.getItem("agc_branches") || "[]").filter((branch) => branch.status !== "Disabled"));
-      const rateMaster = JSON.parse(window.localStorage.getItem(RATE_STORAGE_KEY) || "[]");
-      const stationList = [
-        ...new Set(
-          rateMaster
-            .filter((rate) => (rate.status || "Active") === "Active")
-            .map((rate) => {
-              const station = rate.toStation || rate.toBranchName || rate.toBranch;
-              return station ? String(station).trim() : "";
-            })
-            .filter(Boolean),
-        ),
-      ].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" }));
-      setDestinations(stationList);
     } catch {
       setCustomers([]);
       setBranches([]);
-      setDestinations([]);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rates = await loadRatesWithMigration();
+        if (cancelled) return;
+        setRateMaster(rates);
+        const stationList = [
+          ...new Set(
+            rates
+              .filter((rate) => (rate.status || "Active") === "Active")
+              .map((rate) => {
+                const station = rate.toStation || rate.toBranchName || rate.toBranch;
+                return station ? String(station).trim() : "";
+              })
+              .filter(Boolean),
+          ),
+        ].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" }));
+        setDestinations(stationList);
+      } catch {
+        if (!cancelled) {
+          setRateMaster([]);
+          setDestinations([]);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleChange = (field) => (e) => {
@@ -933,7 +939,7 @@ export default function NewBookingPage() {
       consignorCity: "", consignorState: "", consignorAddress: "",
       consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
       consigneeCity: "", consigneeState: "", consigneeAddress: "",
-      deliveryBranch: "", toStation: "", deliveryAt: "", godownMobile: "",
+      deliveryBranch: "", toStation: "", deliveryAt: "", godownAddress: "", godownMobile: "",
       rate: "", rateSource: "manual", rateType: "Per Kg",
       articles: "", packageType: "", noOfPackages: "", privateMark: "", goodsDescription: "",
       invoiceNumber: "", ewayBillNumber: "", actualWeight: "", chargedWeight: "",
@@ -1003,6 +1009,7 @@ export default function NewBookingPage() {
       packages: packagesCount,
       customers,
       branches,
+      rates: rateMaster,
     });
     if (!match) {
       setRateBadge("missing");
@@ -1027,6 +1034,7 @@ export default function NewBookingPage() {
     packagesCount,
     customers,
     branches,
+    rateMaster,
     form.rate,
     form.rateSource,
   ]);
@@ -1145,6 +1153,7 @@ export default function NewBookingPage() {
       deliveryBranch: form.deliveryBranch,
       toStation: form.toStation,
       deliveryAt: form.deliveryAt,
+      godownAddress: form.godownAddress || "",
       godownMobile: form.godownMobile || "",
     },
     unitRate: Number(form.rate) || 0,

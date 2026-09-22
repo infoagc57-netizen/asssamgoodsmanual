@@ -5,7 +5,6 @@ import AppLayout from "../../../components/layout/AppLayout";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
-const STORAGE_KEY = "agc_rate_master";
 const RATE_TYPES = ["Per Kg", "Per Package", "Fixed"];
 const inputClass = "h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
 
@@ -21,23 +20,6 @@ const initialForm = {
   minFreight: "0",
   effectiveFrom: "",
   status: "Active",
-};
-
-const nextRateId = (rates) => {
-  const next = rates.reduce((max, rate) => Math.max(max, Number(String(rate.id).replace("RATE", "")) || 0), 0) + 1;
-  return `RATE${String(next).padStart(4, "0")}`;
-};
-
-const duplicateKey = (record) => [
-  record.generalRate ? "GENERAL" : record.customerId,
-  record.fromBranch,
-  record.toBranch,
-  record.rateType,
-].join("|");
-
-const isDuplicateActive = (rates, candidate, excludeId) => {
-  if (candidate.status !== "Active") return false;
-  return rates.some((rate) => rate.id !== excludeId && rate.status === "Active" && duplicateKey(rate) === duplicateKey(candidate));
 };
 
 export default function NewRatePage() {
@@ -59,7 +41,7 @@ export default function NewRatePage() {
     });
   };
 
-  const save = (event) => {
+  const save = async (event) => {
     event.preventDefault();
     const rateValue = Number(form.rate);
     const minFreight = form.minFreight === "" ? 0 : Number(form.minFreight);
@@ -84,35 +66,38 @@ export default function NewRatePage() {
       return;
     }
 
-    const rates = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
     const customer = customers.find((item) => item.id === form.customerId);
     const from = branches.find((item) => item.code === form.fromBranch || item.id === form.fromBranch);
     const to = branches.find((item) => item.code === form.toBranch || item.id === form.toBranch);
-    const record = {
-      id: nextRateId(rates),
-      customerId: form.generalRate ? "" : form.customerId,
-      customerName: form.generalRate ? "General Rate" : customer?.name || "",
-      generalRate: Boolean(form.generalRate),
-      fromBranch: form.fromBranch,
-      fromBranchName: from?.name || form.fromBranch,
-      toBranch: form.toBranch,
-      toBranchName: to?.name || form.toBranch,
-      rateType: form.rateType,
-      rate: rateValue,
-      minFreight,
-      effectiveFrom: form.effectiveFrom || today(),
-      status: form.status || "Active",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
 
-    if (isDuplicateActive(rates, record)) {
-      setError("An active rate already exists for this customer, route and rate type.");
-      return;
+    try {
+      const response = await fetch("/api/rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: form.generalRate ? "" : form.customerId,
+          customerName: form.generalRate ? "General Rate" : customer?.name || "",
+          generalRate: Boolean(form.generalRate),
+          fromBranch: form.fromBranch,
+          fromBranchName: from?.name || form.fromBranch,
+          toBranch: form.toBranch,
+          toBranchName: to?.name || form.toBranch,
+          rateType: form.rateType,
+          rate: rateValue,
+          minFreight,
+          effectiveFrom: form.effectiveFrom || today(),
+          status: form.status || "Active",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Could not save rate.");
+        return;
+      }
+      window.location.href = `/rates/${data.rate.id}`;
+    } catch {
+      setError("Could not save rate.");
     }
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...rates, record]));
-    window.location.href = `/rates/${record.id}`;
   };
 
   return (

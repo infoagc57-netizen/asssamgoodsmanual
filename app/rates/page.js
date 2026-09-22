@@ -1,67 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppLayout from "../../components/layout/AppLayout";
 import ExcelUploadDialog from "../../components/rates/ExcelUploadDialog";
+import { loadRatesWithMigration } from "@/lib/rateClient";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
-const STORAGE_KEY = "agc_rate_master";
 const inputClass = "h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
-const today = () => new Date().toISOString().slice(0, 10);
 const customerLabel = (rate) => (rate.generalRate ? "General Rate" : rate.customerName || rate.customerId || "-");
 const routeLabel = (rate) => `${rate.fromBranchName || rate.fromBranch || "-"} → ${rate.toBranchName || rate.toBranch || rate.toStation || "-"}`;
-
-const nextRateId = (rates) => {
-  const next = rates.reduce((max, rate) => Math.max(max, Number(String(rate.id).replace("RATE", "")) || 0), 0) + 1;
-  return `RATE${String(next).padStart(4, "0")}`;
-};
-
-const stationKey = (value) => String(value || "").trim().toLowerCase();
-
-const matchesGeneralStation = (rate, station) => {
-  if (!rate?.generalRate) return false;
-  const key = stationKey(station);
-  return (
-    stationKey(rate.toStation) === key
-    || stationKey(rate.toBranchName) === key
-    || stationKey(rate.toBranch) === key
-  );
-};
-
-const titleCaseStation = (station) => String(station || "").trim().replace(/\b\w/g, (char) => char.toUpperCase());
-
-const readRatesFromStorage = () => {
-  try {
-    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
-
-const mergeRateRecords = (lists) => {
-  const byId = new Map();
-  lists.flat().forEach((item) => {
-    if (item?.id) byId.set(item.id, item);
-  });
-  return Array.from(byId.values());
-};
+const rateIdLabel = (rate) => (rate.id ? String(rate.id).slice(-8).toUpperCase() : "-");
 
 export default function RatesPage() {
   const [rates, setRates] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const loadRates = () => {
-    setRates(readRatesFromStorage());
-  };
+  const loadRates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const next = await loadRatesWithMigration();
+      setRates(next);
+    } catch {
+      setRates([]);
+      setToast("Could not load rates from server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { loadRates(); }, []);
+  useEffect(() => { loadRates(); }, [loadRates]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -69,73 +44,38 @@ export default function RatesPage() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const handleImportRates = (parsedRates) => {
-    const fromStorage = readRatesFromStorage();
-    const existing = mergeRateRecords([fromStorage, rates]);
-    const now = new Date().toISOString();
-    const effectiveFrom = today();
-    let importedCount = 0;
-    const nextRates = [...existing];
-
-    parsedRates.forEach(({ station, rate, godown_address, godown_mobile }) => {
-      const trimmedStation = String(station || "").trim();
-      const rateValue = Number(rate);
-      if (!trimmedStation || !Number.isFinite(rateValue) || rateValue <= 0) return;
-      const godownAddress = String(godown_address || "").trim();
-      const godownMobile = String(godown_mobile || "").trim();
-
-      const index = nextRates.findIndex((item) => matchesGeneralStation(item, trimmedStation));
-      if (index >= 0) {
-        nextRates[index] = {
-          ...nextRates[index],
-          toStation: trimmedStation,
-          toBranch: trimmedStation,
-          toBranchName: titleCaseStation(trimmedStation),
-          rate: rateValue,
-          rateType: nextRates[index].rateType || "Per Kg",
-          godownAddress: godownAddress || nextRates[index].godownAddress || "",
-          godownMobile: godownMobile || nextRates[index].godownMobile || "",
-          effectiveFrom,
-          status: "Active",
-          updatedAt: now,
-        };
-      } else {
-        nextRates.push({
-          id: nextRateId(nextRates),
-          customerId: "",
-          customerName: "General Rate",
-          generalRate: true,
-          fromBranch: "",
-          fromBranchName: "All",
-          toStation: trimmedStation,
-          toBranch: trimmedStation,
-          toBranchName: titleCaseStation(trimmedStation),
-          rate: rateValue,
-          rateType: "Per Kg",
-          godownAddress,
-          godownMobile,
-          minFreight: 0,
-          effectiveFrom,
-          status: "Active",
-          createdAt: now,
-          updatedAt: now,
-        });
+  const handleImportRates = async (parsedRates) => {
+    try {
+      const response = await fetch("/api/rates/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rates: parsedRates }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setToast(data.error || "Import failed.");
+        return;
       }
-      importedCount += 1;
-    });
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRates));
-    setRates(nextRates);
-    const preserved = nextRates.length - importedCount;
-    setToast(
-      `${importedCount} rate(s) imported · ${nextRates.length} total (${preserved} existing preserved)`,
-    );
+      setRates(data.rates || []);
+      setToast(data.message || "Rates imported.");
+    } catch {
+      setToast("Import failed.");
+    }
   };
 
-  const disableRate = (id) => {
-    const updated = rates.map((rate) => rate.id === id ? { ...rate, status: "Inactive", updatedAt: new Date().toISOString() } : rate);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    setRates(updated);
+  const disableRate = async (id) => {
+    try {
+      const response = await fetch(`/api/rates/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Inactive" }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setRates((previous) => previous.map((rate) => (rate.id === id ? data.rate : rate)));
+    } catch {
+      setToast("Could not disable rate.");
+    }
   };
 
   const requestDeleteRate = (rateId) => {
@@ -144,13 +84,20 @@ export default function RatesPage() {
     setDeleteTarget(rate);
   };
 
-  const confirmDeleteRate = () => {
+  const confirmDeleteRate = async () => {
     if (!deleteTarget?.id) return;
-    const updated = rates.filter((rate) => rate.id !== deleteTarget.id);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    setRates(updated);
-    setDeleteTarget(null);
-    setToast("Rate deleted successfully");
+    try {
+      const response = await fetch(`/api/rates/${encodeURIComponent(deleteTarget.id)}`, { method: "DELETE" });
+      if (!response.ok) {
+        setToast("Delete failed.");
+        return;
+      }
+      setRates((previous) => previous.filter((rate) => rate.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      setToast("Rate deleted successfully");
+    } catch {
+      setToast("Delete failed.");
+    }
   };
 
   const visible = rates.filter((rate) => {
@@ -167,7 +114,7 @@ export default function RatesPage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: ORANGE }}>Master Data</p>
               <h1 className="mt-1 text-3xl font-bold" style={{ color: NAVY }}>Rate Master</h1>
-              <p className="mt-1 text-sm text-slate-500">Maintain customer and general freight rates by route.</p>
+              <p className="mt-1 text-sm text-slate-500">Maintain customer and general freight rates by route (saved in database).</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -207,9 +154,13 @@ export default function RatesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {visible.length ? visible.map((rate) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan="9" className="px-5 py-16 text-center text-sm text-slate-500">Loading rates…</td>
+                    </tr>
+                  ) : visible.length ? visible.map((rate) => (
                     <tr key={rate.id} className="hover:bg-orange-50/30">
-                      <td className="px-5 py-4 text-sm font-bold" style={{ color: NAVY }}>{rate.id}</td>
+                      <td className="px-5 py-4 text-sm font-bold font-mono" style={{ color: NAVY }} title={rate.id}>{rateIdLabel(rate)}</td>
                       <td className="px-5 py-4 text-sm font-semibold text-slate-800">{customerLabel(rate)}</td>
                       <td className="px-5 py-4 text-sm text-slate-600">{routeLabel(rate)}</td>
                       <td className="px-5 py-4 text-sm text-slate-600">{rate.rateType}</td>
@@ -263,7 +214,7 @@ export default function RatesPage() {
             <p className="mt-2 text-sm text-slate-600">
               Remove rate for{" "}
               <strong>{deleteTarget.toStation || deleteTarget.toBranchName || deleteTarget.toBranch || "Unknown"}</strong>
-              {" "}({deleteTarget.id})? This cannot be undone.
+              ? This cannot be undone.
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <button
