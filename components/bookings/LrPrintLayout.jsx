@@ -2,6 +2,7 @@
 
 import Code128Barcode from "./LrPrintBarcode";
 import LrUpiQr from "./LrUpiQr";
+import { TRANSPORTER_ID } from "@/lib/constants";
 
 const LR_COPIES = [
   { type: "CONSIGNOR", color: "#071B34", label: "CONSIGNOR COPY" },
@@ -139,6 +140,7 @@ function LRCopy({
           <p>Head Office: PLOT NO. 5A IND AREA PHASE 2 PANCHKULA, Panchkula, Haryana - 134113</p>
           <p>Ph: 8847428801 • info@assamgoodscarrier.com</p>
           <p>www.assamgoodscarrier.com • GSTIN: 06HNAPM3923G1Z3</p>
+          <p>TRANSPORTER ID: {TRANSPORTER_ID}</p>
         </div>
       </header>
 

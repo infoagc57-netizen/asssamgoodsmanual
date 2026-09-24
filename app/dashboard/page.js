@@ -236,13 +236,23 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <Link
-              href="/rate-calculator"
-              className="group flex items-center justify-center gap-2 self-center rounded-2xl border-2 border-orange-500 bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-600 hover:shadow-xl lg:self-stretch lg:px-5"
-            >
-              <Calculator className="h-4 w-4 shrink-0" />
-              Rate Calculator
-            </Link>
+            <div className="flex flex-col gap-2 self-center sm:flex-row sm:items-stretch lg:self-stretch">
+              <Link
+                href="/bookings/new"
+                className="group flex items-center justify-center gap-2 rounded-2xl border-2 border-white bg-white px-4 py-3 text-sm font-bold shadow-lg transition-all hover:bg-white/95 hover:shadow-xl lg:px-5"
+                style={{ color: NAVY }}
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                New Booking
+              </Link>
+              <Link
+                href="/rate-calculator"
+                className="group flex items-center justify-center gap-2 rounded-2xl border-2 border-orange-500 bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-600 hover:shadow-xl lg:px-5"
+              >
+                <Calculator className="h-4 w-4 shrink-0" />
+                Rate Calculator
+              </Link>
+            </div>
           </div>
         </div>
       </div>
