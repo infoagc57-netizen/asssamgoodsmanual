@@ -116,23 +116,9 @@ function LRCopy({
     + Number(charges.otherCharges)
   );
 
-  const storedGst = Number(compute("gstOnFreight")) || 0;
-  const applyGst = Boolean(form.applyGst) || storedGst > 0;
-  const gstRate = applyGst ? Number(form.gstRate ?? 5) : 0;
-  const gstAmount = storedGst > 0
-    ? storedGst
-    : applyGst
-      ? Math.round((fareLineSubtotal * gstRate) / 100 * 100) / 100
-      : 0;
-
   const storedGrandTotal = Number(grandTotal) || 0;
-  const grandTotalNum = storedGrandTotal > 0
-    ? storedGrandTotal
-    : fareLineSubtotal + gstAmount;
-
-  const subtotal = storedGrandTotal > 0
-    ? Math.round((grandTotalNum - gstAmount) * 100) / 100
-    : fareLineSubtotal;
+  const grandTotalNum = storedGrandTotal > 0 ? storedGrandTotal : fareLineSubtotal;
+  const subtotal = fareLineSubtotal;
 
   return (
     <article className="lr-copy">
@@ -344,10 +330,6 @@ function LRCopy({
                 <tr className="row-subtotal">
                   <td colSpan={2}>SUB TOTAL</td>
                   <td className="col-amt">{amt(subtotal)}</td>
-                </tr>
-                <tr className="row-gst">
-                  <td colSpan={2}>GST @ {gstRate}%</td>
-                  <td className="col-amt">{amt(gstAmount)}</td>
                 </tr>
                 <tr className="row-grand">
                   <td colSpan={2}>GRAND TOTAL</td>

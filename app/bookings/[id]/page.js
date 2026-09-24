@@ -82,8 +82,6 @@ function bookingToPrintForm(booking, rateMaster = []) {
     dimensionPieces: dimensions.pieces ?? "",
     deliveryType: booking.deliveryType || "door",
     handlingType: booking.handlingType || (Number(booking.charges?.fmChargeAmount) > 0 ? "fm" : "selfdrop"),
-    applyGst: booking.charges?.applyGst ?? Number(booking.charges?.gstOnFreight) > 0,
-    gstRate: booking.charges?.gstRate ?? 5,
   };
 }
 
@@ -518,7 +516,7 @@ export default function BookingDetailsPage() {
         <div className="mt-4">
           <DetailCard title="Charges">
             <div className="grid gap-x-8 sm:grid-cols-2">
-              {[["Freight", charges.freight], ["FM Charges", charges.fmChargeAmount], ["Hamali", charges.hamali], ["Door Delivery", charges.doorDelivery], ["Local Cartage Charges", charges.localCartageCharges], ["Self Builty Charge", charges.selfBuiltyCharge], ["Builty Charge", charges.builtyCharge], ["To Pay Extra Charge", charges.toPayBuiltyCharge], ["Other Charges", charges.otherCharges], ["GST on Freight", charges.gstOnFreight]].map(([label, value]) => <div key={label} className="flex justify-between border-b border-slate-100 py-3 text-sm"><span className="text-slate-600">{label}</span><strong className="text-slate-900">{money(value)}</strong></div>)}
+              {[["Freight", charges.freight], ["FM Charges", charges.fmChargeAmount], ["Hamali", charges.hamali], ["Door Delivery", charges.doorDelivery], ["Local Cartage Charges", charges.localCartageCharges], ["Self Builty Charge", charges.selfBuiltyCharge], ["Builty Charge", charges.builtyCharge], ["To Pay Extra Charge", charges.toPayBuiltyCharge], ["Other Charges", charges.otherCharges]].map(([label, value]) => <div key={label} className="flex justify-between border-b border-slate-100 py-3 text-sm"><span className="text-slate-600">{label}</span><strong className="text-slate-900">{money(value)}</strong></div>)}
             </div>
             <div className="mt-4 flex items-center justify-between rounded-xl px-4 py-4 text-white" style={{ backgroundColor: NAVY }}><span className="text-sm font-bold uppercase tracking-[0.12em]">Grand Total</span><strong className="text-2xl" style={{ color: ORANGE }}>{money(booking.grandTotal)}</strong></div>
           </DetailCard>

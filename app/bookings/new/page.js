@@ -317,7 +317,7 @@ export default function NewBookingPage() {
     dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
     dimensionUnit: "cm", dimensionPieces: "1",
     riskType: "", declaredValue: "", codAmount: 0,
-    freight: "", freightManuallyEdited: false, fmChargeRate: 1.50, fmChargeAmount: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
+    freight: "", freightManuallyEdited: false, fmChargeRate: 1.50, fmChargeAmount: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "",
     builtyCharge: "150",
     paymentType: "to_pay",
     deliveryType: "door",
@@ -538,9 +538,6 @@ export default function NewBookingPage() {
           localCartageCharges: charges.localCartageCharges ?? "",
           selfBuiltyCharge: charges.selfBuiltyCharge ?? "",
           otherCharges: charges.otherCharges ?? "",
-          gstOnFreight: charges.gstOnFreight ?? "",
-          applyGst: charges.applyGst ?? true,
-          gstRate: charges.gstRate ?? 5,
           freightManuallyEdited: false,
           builtyCharge: charges.builtyCharge ?? "150",
           fmChargeRate: charges.fmChargeRate ?? 1.5,
@@ -953,7 +950,7 @@ export default function NewBookingPage() {
       dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
       dimensionUnit: "cm", dimensionPieces: "1",
       riskType: "", declaredValue: "", codAmount: 0,
-      freight: "", freightManuallyEdited: false, fmChargeRate: 1.50, fmChargeAmount: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
+      freight: "", freightManuallyEdited: false, fmChargeRate: 1.50, fmChargeAmount: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "",
       builtyCharge: "150",
       paymentType: "to_pay",
       deliveryType: "door",
@@ -1088,20 +1085,7 @@ export default function NewBookingPage() {
     toPayBuiltyCharge,
   ]);
 
-  const gstRatePercent = Number(form.gstRate ?? 5);
-
-  const gstAmount = useMemo(() => (
-    form.applyGst
-      ? roundMoney((chargesSubtotal * gstRatePercent) / 100)
-      : 0
-  ), [form.applyGst, chargesSubtotal, gstRatePercent]);
-
-  useEffect(() => {
-    const gstStr = gstAmount > 0 ? gstAmount.toFixed(2) : "";
-    setForm((previous) => (String(previous.gstOnFreight) === gstStr ? previous : { ...previous, gstOnFreight: gstStr }));
-  }, [gstAmount]);
-
-  const displayTotal = chargesSubtotal + compute("selfBuiltyCharge") + gstAmount;
+  const displayTotal = chargesSubtotal + compute("selfBuiltyCharge");
   const grandTotal = displayTotal;
   const totalStr = grandTotal > 0 ? grandTotal.toFixed(2) : "";
 
@@ -1218,13 +1202,13 @@ export default function NewBookingPage() {
       builtyCharge,
       toPayBuiltyCharge,
       otherCharges: compute("otherCharges"),
-      gstOnFreight: gstAmount,
+      gstOnFreight: 0,
       codHandlingFee,
       fmCharges: fmChargesActive,
       fmChargeRate: Number(form.fmChargeRate) || 1.5,
       fmChargeAmount,
-      applyGst: form.applyGst,
-      gstRate: gstRatePercent,
+      applyGst: false,
+      gstRate: 0,
     },
   });
 
@@ -2147,16 +2131,6 @@ export default function NewBookingPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-slate-600">Other Charges</span>
                           <span className="font-semibold text-slate-800">₹{otherChargesTotal.toFixed(2)}</span>
-                        </div>
-                      )}
-
-                      {form.applyGst && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600">
-                            GST
-                            <span className="ml-1 text-xs text-slate-400">({gstRatePercent}%)</span>
-                          </span>
-                          <span className="font-semibold text-slate-800">₹{gstAmount.toFixed(2)}</span>
                         </div>
                       )}
 
