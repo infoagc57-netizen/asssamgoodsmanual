@@ -313,7 +313,7 @@ body {
     padding: 0 !important;
   }
 
-  /* Package stickers: use /bookings/[id]/sticker — LR print is 2 portrait pages (dual copy) */
+  /* LR bilty: 4 portrait pages (2 fronts + 2 T&C backs) for duplex long-edge + horizontal cut */
   .lr-print-section .lr-sticker-sheet {
     display: none !important;
     visibility: hidden !important;
@@ -425,6 +425,108 @@ body {
 
   .lr-print-section .lr-cut-line-dash {
     display: none !important;
+  }
+
+  /* T&C back pages: 138mm + cut + 138mm per A4 sheet */
+  .lr-print-section .lr-print-page--terms .lr-terms-half {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 210mm !important;
+    height: 138mm !important;
+    max-height: 138mm !important;
+    min-height: 138mm !important;
+    flex: 0 0 138mm !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    padding: 2.5mm 4mm 2mm !important;
+    margin: 0 !important;
+    background: #fff !important;
+    border: 1.5px solid #000 !important;
+    font-size: 6.5pt !important;
+    line-height: 1.15 !important;
+    color: #000 !important;
+  }
+
+  .lr-print-section .lr-print-page--terms .lr-cut-line {
+    flex: 0 0 21mm !important;
+    height: 21mm !important;
+    min-height: 21mm !important;
+    max-height: 21mm !important;
+  }
+
+  .lr-print-section .lr-terms-half-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 2.5mm !important;
+    margin-bottom: 1.5mm !important;
+    flex-shrink: 0 !important;
+  }
+
+  .lr-print-section .lr-terms-half-logo {
+    width: 10mm !important;
+    height: auto !important;
+    object-fit: contain !important;
+    flex-shrink: 0 !important;
+  }
+
+  .lr-print-section .lr-terms-half-company {
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .lr-print-section .lr-terms-half-tagline {
+    font-size: 5.5pt !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+  }
+
+  .lr-print-section .lr-terms-half-addr {
+    font-size: 5.5pt !important;
+    line-height: 1.2 !important;
+    color: #1f2937 !important;
+  }
+
+  .lr-print-section .lr-terms-half-title {
+    text-align: center !important;
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.12em !important;
+    margin: 1mm 0 1.5mm !important;
+    flex-shrink: 0 !important;
+    border-bottom: 1px solid #000 !important;
+    padding-bottom: 0.5mm !important;
+  }
+
+  .lr-print-section .lr-terms-half-list {
+    flex: 1 1 auto !important;
+    margin: 0 !important;
+    padding: 0 0 0 3.5mm !important;
+    list-style: decimal !important;
+    overflow: hidden !important;
+  }
+
+  .lr-print-section .lr-terms-half-list li {
+    margin-bottom: 0.6mm !important;
+    padding-left: 0.5mm !important;
+  }
+
+  .lr-print-section .lr-terms-half-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    margin-top: 1mm !important;
+    padding-top: 0.5mm !important;
+    border-top: 1px solid #ccc !important;
+    font-size: 6pt !important;
+    flex-shrink: 0 !important;
+  }
+
+  .lr-print-section .lr-terms-half-sign-line {
+    min-width: 38mm !important;
+    text-align: center !important;
+    border-top: 1px solid #000 !important;
+    padding-top: 0.5mm !important;
   }
 
   .lr-watermark {

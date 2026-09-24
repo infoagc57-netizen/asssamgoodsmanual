@@ -2,6 +2,7 @@
 
 import Code128Barcode from "./LrPrintBarcode";
 import LrUpiQr from "./LrUpiQr";
+import LrTermsHalf from "./LrTermsHalf";
 import { TRANSPORTER_ID } from "@/lib/constants";
 
 const LR_COPIES = [
@@ -396,16 +397,27 @@ export default function LrPrintLayout(props) {
   return (
     <section className="lr-print-sheet" aria-label="Assam Goods Carrier LR print view">
       <div className="lr-print-container lr-print-container--portrait-dual">
-        {LR_PRINT_PAGES.map((pageCopies) => (
-          <div key={pageCopies.map((c) => c.type).join("-")} className="lr-print-page">
-            <LRCopy copy={pageCopies[0]} {...copyProps} />
-            <div className="lr-cut-line" aria-hidden="true">
-              <span className="lr-cut-line-icon">✂</span>
-              <span>Cut along dashed line</span>
-            </div>
-            <LRCopy copy={pageCopies[1]} {...copyProps} />
-          </div>
-        ))}
+        {LR_PRINT_PAGES.flatMap((pageCopies) => {
+          const pageKey = pageCopies.map((c) => c.type).join("-");
+          return [
+            <div key={`lr-${pageKey}`} className="lr-print-page lr-print-page--bilty">
+              <LRCopy copy={pageCopies[0]} {...copyProps} />
+              <div className="lr-cut-line" aria-hidden="true">
+                <span className="lr-cut-line-icon">✂</span>
+                <span>Cut along dashed line</span>
+              </div>
+              <LRCopy copy={pageCopies[1]} {...copyProps} />
+            </div>,
+            <div key={`terms-${pageKey}`} className="lr-print-page lr-print-page--terms" aria-label="Terms and conditions (duplex back)">
+              <LrTermsHalf />
+              <div className="lr-cut-line" aria-hidden="true">
+                <span className="lr-cut-line-icon">✂</span>
+                <span>Cut along dashed line</span>
+              </div>
+              <LrTermsHalf />
+            </div>,
+          ];
+        })}
       </div>
 
       {packageCount > 0 && (
