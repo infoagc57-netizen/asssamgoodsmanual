@@ -1756,67 +1756,88 @@ export default function NewBookingPage() {
                     </p>
                   </Field>
                 </div>
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Pickup / Handling</label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {[
-                      { value: "fm", title: "FM Pickup", hint: "First mile pickup — FM charges ₹1.50/kg apply" },
-                      { value: "selfdrop", title: "Self Drop", hint: "Consignor drops goods at branch — no FM charges" },
-                    ].map((option) => (
+                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Pickup / Handling
+                    </label>
+                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
                       <button
-                        key={option.value}
                         type="button"
-                        onClick={() => setForm((previous) => ({ ...previous, handlingType: option.value }))}
-                        className={`rounded-xl border px-4 py-3 text-left transition ${
-                          form.handlingType === option.value
-                            ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
-                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        onClick={() => setForm((prev) => ({ ...prev, handlingType: "fm" }))}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          form.handlingType === "fm" || !form.handlingType
+                            ? "bg-[#071B34] text-white"
+                            : "text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
-                        <span className="mt-0.5 block text-xs text-slate-500">{option.hint}</span>
+                        FM Pickup
                       </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Delivery Type</label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {[
-                      { value: "door", title: "Door Delivery", hint: "Delivery at consignee address" },
-                      { value: "godown", title: "Godown Delivery", hint: "Consignee collects from godown / warehouse" },
-                    ].map((option) => (
                       <button
-                        key={option.value}
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, handlingType: "selfdrop" }))}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          form.handlingType === "selfdrop"
+                            ? "bg-orange-500 text-white"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        Self Drop
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {form.handlingType === "selfdrop"
+                        ? "Consignor drops at branch — no FM charges"
+                        : "First mile pickup — ₹1.50/kg FM charges apply"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Delivery Type
+                    </label>
+                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, deliveryType: "door" }))}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          form.deliveryType === "door" || !form.deliveryType
+                            ? "bg-[#071B34] text-white"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        Door Delivery
+                      </button>
+                      <button
                         type="button"
                         onClick={() => {
-                          if (option.value === "godown") {
-                            let station = "";
-                            setForm((previous) => {
-                              station = previous.deliveryBranch || previous.toStation || previous.deliveryAt;
-                              const godownAddress = previous.godownAddress || "";
-                              return {
-                                ...previous,
-                                deliveryType: "godown",
-                                ...(godownAddress ? { deliveryAt: godownAddress } : {}),
-                              };
-                            });
-                            if (station) autoFillRate(station, "godown");
-                            return;
-                          }
-                          setForm((previous) => ({ ...previous, deliveryType: option.value }));
+                          let station = "";
+                          setForm((prev) => {
+                            station = prev.deliveryBranch || prev.toStation || prev.deliveryAt;
+                            const godownAddress = prev.godownAddress || "";
+                            return {
+                              ...prev,
+                              deliveryType: "godown",
+                              ...(godownAddress ? { deliveryAt: godownAddress } : {}),
+                            };
+                          });
+                          if (station) autoFillRate(station, "godown");
                         }}
-                        className={`rounded-xl border px-4 py-3 text-left transition ${
-                          form.deliveryType === option.value
-                            ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
-                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          form.deliveryType === "godown"
+                            ? "bg-orange-500 text-white"
+                            : "text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
-                        <span className="mt-0.5 block text-xs text-slate-500">{option.hint}</span>
+                        Godown Delivery
                       </button>
-                    ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {form.deliveryType === "godown"
+                        ? "Consignee collects from godown / warehouse"
+                        : "Delivery at consignee address"}
+                    </p>
                   </div>
+                </div>
                   {form.deliveryType === "godown" && (
                     <div className="mt-4 grid gap-3 rounded-xl border border-orange-200 bg-orange-50/40 p-3 sm:grid-cols-2">
                       <div className="sm:col-span-2">
@@ -1845,7 +1866,6 @@ export default function NewBookingPage() {
                       </div>
                     </div>
                   )}
-                </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
