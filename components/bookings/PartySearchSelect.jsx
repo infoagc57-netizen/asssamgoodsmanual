@@ -56,8 +56,9 @@ export default function PartySearchSelect({
     setQuery("");
   };
 
-  const triggerClass = inputClassName
-    || "flex h-[42px] w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-sm hover:border-orange-300 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
+  // Keep trigger compact; booking form passes `inp` (h-[42px]) — do not apply that to the trigger.
+  const triggerClass =
+    "flex h-8 min-h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-xs text-slate-600 outline-none transition hover:border-orange-300 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100";
 
   return (
     <div ref={boxRef} className="relative">
@@ -68,9 +69,9 @@ export default function PartySearchSelect({
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <span className="truncate text-slate-600">{placeholder}</span>
+        <span className="truncate">{placeholder}</span>
         <svg
-          className={`ml-2 h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`ml-1 h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
