@@ -80,6 +80,7 @@ function LRCopy({
   form,
   paymentLabel,
   deliveryTypeLabel = "DOOR DELIVERY",
+  handlingTypeLabel = "FM PICKUP",
   actualWeight,
   chargedWeight,
   volumetricWeight,
@@ -102,10 +103,12 @@ function LRCopy({
     localCartage: compute("localCartageCharges"),
     builtyCharge,
     otherCharges: compute("otherCharges"),
+    fmChargeAmount: Number(compute("fmChargeAmount")) || 0,
   };
 
   const fareLineSubtotal = (
     Number(charges.freight)
+    + Number(charges.fmChargeAmount)
     + Number(charges.hamali)
     + Number(charges.doorDelivery)
     + Number(charges.localCartageCharges || charges.localCartage)
@@ -161,6 +164,9 @@ function LRCopy({
             <span className="lr-payment-pill">{paymentLabel}</span>
             <span className={`lr-delivery-pill ${deliveryTypeLabel.includes("GODOWN") ? "lr-delivery-pill-godown" : "lr-delivery-pill-door"}`}>
               {deliveryTypeLabel}
+            </span>
+            <span className={`lr-handling-pill ${handlingTypeLabel.includes("SELF") ? "lr-handling-pill-selfdrop" : "lr-handling-pill-fm"}`}>
+              {handlingTypeLabel}
             </span>
           </div>
         </div>
@@ -307,26 +313,31 @@ function LRCopy({
                 </tr>
                 <tr>
                   <td className="col-sn">2</td>
+                  <td>FM Charges</td>
+                  <td className="col-amt">{amt(charges.fmChargeAmount)}</td>
+                </tr>
+                <tr>
+                  <td className="col-sn">3</td>
                   <td>Hamali</td>
                   <td className="col-amt">{amt(charges.hamali)}</td>
                 </tr>
                 <tr>
-                  <td className="col-sn">3</td>
+                  <td className="col-sn">4</td>
                   <td>Door Delivery</td>
                   <td className="col-amt">{amt(charges.doorDelivery)}</td>
                 </tr>
                 <tr>
-                  <td className="col-sn">4</td>
+                  <td className="col-sn">5</td>
                   <td>Local Cartage Charges</td>
                   <td className="col-amt">{amt(charges.localCartageCharges || charges.localCartage)}</td>
                 </tr>
                 <tr>
-                  <td className="col-sn">5</td>
+                  <td className="col-sn">6</td>
                   <td>Builty Charge</td>
                   <td className="col-amt">{amt(charges.builtyCharge)}</td>
                 </tr>
                 <tr>
-                  <td className="col-sn">6</td>
+                  <td className="col-sn">7</td>
                   <td>Other Charges</td>
                   <td className="col-amt">{amt(charges.otherCharges)}</td>
                 </tr>

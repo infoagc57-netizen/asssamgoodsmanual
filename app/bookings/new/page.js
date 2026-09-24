@@ -14,7 +14,6 @@ const NAVY_LIGHT = "#14304D";
 const ORANGE = "#F97316";
 const LR_STORAGE_KEY = "agc_next_lr";
 const FIRST_LR_NUMBER = 7900000001;
-const GST_RATE_OPTIONS = [0, 5, 12, 18, 28];
 const COD_HANDLING_FEE = 100;
 const DEFAULT_LR_CODE = "AGC";
 const DEFAULT_BOOKING_BRANCH = "Panchkula, Haryana";
@@ -318,10 +317,11 @@ export default function NewBookingPage() {
     dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
     dimensionUnit: "cm", dimensionPieces: "1",
     riskType: "", declaredValue: "", codAmount: 0,
-    freight: "", freightManuallyEdited: false, hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
+    freight: "", freightManuallyEdited: false, fmChargeRate: 1.50, fmChargeAmount: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
     builtyCharge: "150",
     paymentType: "to_pay",
     deliveryType: "door",
+    handlingType: "fm",
   });
 
   const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
@@ -543,6 +543,9 @@ export default function NewBookingPage() {
           gstRate: charges.gstRate ?? 5,
           freightManuallyEdited: false,
           builtyCharge: charges.builtyCharge ?? "150",
+          fmChargeRate: charges.fmChargeRate ?? 1.5,
+          fmChargeAmount: charges.fmChargeAmount != null ? String(charges.fmChargeAmount) : "",
+          handlingType: record.handlingType || (Boolean(charges.fmCharges) || Number(charges.fmChargeAmount) > 0 ? "fm" : "selfdrop"),
           paymentType: record.paymentType || "to_pay",
           deliveryType: record.deliveryType || "door",
         }));
@@ -950,10 +953,11 @@ export default function NewBookingPage() {
       dimensionLength: "", dimensionWidth: "", dimensionHeight: "",
       dimensionUnit: "cm", dimensionPieces: "1",
       riskType: "", declaredValue: "", codAmount: 0,
-      freight: "", freightManuallyEdited: false, hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
+      freight: "", freightManuallyEdited: false, fmChargeRate: 1.50, fmChargeAmount: "", hamali: "", doorDelivery: "", localCartageCharges: "", selfBuiltyCharge: "", otherCharges: "", gstOnFreight: "", applyGst: true, gstRate: 5,
       builtyCharge: "150",
       paymentType: "to_pay",
       deliveryType: "door",
+      handlingType: "fm",
     });
   };
 
@@ -1049,8 +1053,22 @@ export default function NewBookingPage() {
   const codAmountNum = Number(form.codAmount) || 0;
   const codHandlingFee = codAmountNum > 0 ? COD_HANDLING_FEE : 0;
 
+  const fmChargesActive = form.handlingType !== "selfdrop";
+
+  const fmChargeAmount = useMemo(() => (
+    fmChargesActive
+      ? roundMoney(chargedWeight * (Number(form.fmChargeRate) || 1.5))
+      : 0
+  ), [fmChargesActive, form.fmChargeRate, chargedWeight]);
+
+  useEffect(() => {
+    const next = fmChargeAmount > 0 ? fmChargeAmount.toFixed(2) : "";
+    setForm((previous) => (String(previous.fmChargeAmount) === next ? previous : { ...previous, fmChargeAmount: next }));
+  }, [fmChargeAmount]);
+
   const chargesSubtotal = useMemo(() => (
     freightTotal
+    + fmChargeAmount
     + compute("hamali")
     + compute("doorDelivery")
     + compute("localCartageCharges")
@@ -1060,6 +1078,7 @@ export default function NewBookingPage() {
     + toPayBuiltyCharge
   ), [
     freightTotal,
+    fmChargeAmount,
     form.hamali,
     form.doorDelivery,
     form.localCartageCharges,
@@ -1131,6 +1150,7 @@ export default function NewBookingPage() {
     time: form.bookingTime,
     paymentType: form.paymentType,
     deliveryType: form.deliveryType || "door",
+    handlingType: form.handlingType === "selfdrop" ? "selfdrop" : "fm",
     godownAddress: form.godownAddress || "",
     godownMobile: form.godownMobile || "",
     grandTotal: displayTotal,
@@ -1200,6 +1220,9 @@ export default function NewBookingPage() {
       otherCharges: compute("otherCharges"),
       gstOnFreight: gstAmount,
       codHandlingFee,
+      fmCharges: fmChargesActive,
+      fmChargeRate: Number(form.fmChargeRate) || 1.5,
+      fmChargeAmount,
       applyGst: form.applyGst,
       gstRate: gstRatePercent,
     },
@@ -1318,6 +1341,7 @@ export default function NewBookingPage() {
   const printText = (value, fallback = "-") => value || fallback;
   const paymentLabel = form.paymentType === "to_pay" ? "TO PAY" : form.paymentType === "paid" ? "PAID" : "TBB";
   const deliveryTypeLabel = form.deliveryType === "godown" ? "GODOWN DELIVERY" : "DOOR DELIVERY";
+  const handlingTypeLabel = form.handlingType === "selfdrop" ? "SELF DROP" : "FM PICKUP";
   const currentLrNumber = /^79\d{8}$/.test(form.lrNumber) ? form.lrNumber : String(FIRST_LR_NUMBER);
 
   const lrPrintForm = useMemo(() => {
@@ -1733,6 +1757,29 @@ export default function NewBookingPage() {
                   </Field>
                 </div>
                 <div className="mt-4 border-t border-slate-100 pt-4">
+                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Pickup / Handling</label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {[
+                      { value: "fm", title: "FM Pickup", hint: "First mile pickup — FM charges ₹1.50/kg apply" },
+                      { value: "selfdrop", title: "Self Drop", hint: "Consignor drops goods at branch — no FM charges" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setForm((previous) => ({ ...previous, handlingType: option.value }))}
+                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                          form.handlingType === option.value
+                            ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
+                        <span className="mt-0.5 block text-xs text-slate-500">{option.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 border-t border-slate-100 pt-4">
                   <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Delivery Type</label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {[
@@ -1964,6 +2011,11 @@ export default function NewBookingPage() {
                           Recalculate from rate
                         </button>
                       )}
+                      {fmChargesActive && (
+                        <p className="mt-1 text-[11px] font-semibold text-slate-700">
+                          FM charges: ₹{(Number(form.fmChargeRate) || 1.5).toFixed(2)}/kg × {chargedWeight.toFixed(2)} kg = ₹{fmChargeAmount.toFixed(2)}
+                        </p>
+                      )}
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
@@ -2030,42 +2082,6 @@ export default function NewBookingPage() {
                         {form.paymentType === "to_pay" ? "Applied for To Pay bookings" : "Not applicable for this payment type"}
                       </p>
                     </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:col-span-2">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Apply GST</label>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <select
-                            value={String(form.gstRate ?? 5)}
-                            onChange={(event) => setForm((previous) => ({ ...previous, gstRate: Number(event.target.value) }))}
-                            disabled={!form.applyGst}
-                            className={`${sel} h-9 min-w-[88px] text-[13px] ${!form.applyGst ? "cursor-not-allowed opacity-60" : ""}`}
-                            aria-label="GST rate"
-                          >
-                            {GST_RATE_OPTIONS.map((rate) => (
-                              <option key={rate} value={rate}>{rate}%</option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setForm((previous) => ({ ...previous, applyGst: !previous.applyGst }))}
-                            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${form.applyGst ? "bg-orange-500" : "bg-slate-300"}`}
-                            aria-pressed={form.applyGst}
-                          >
-                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${form.applyGst ? "translate-x-6" : "translate-x-1"}`} />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        {form.applyGst
-                          ? `GST on charge subtotal (₹${chargesSubtotal.toFixed(2)}) at ${gstRatePercent}%`
-                          : "GST is not applied to this booking"}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-                        <span className="text-sm text-slate-600">GST amount</span>
-                        <span className="text-sm font-bold text-slate-900">{money(gstAmount)}</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -2094,6 +2110,18 @@ export default function NewBookingPage() {
                         </span>
                         <span className="font-semibold text-slate-800">₹{freightTotal.toFixed(2)}</span>
                       </div>
+
+                      {fmChargeAmount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-600">
+                            FM Charges
+                            <span className="ml-1 text-xs text-slate-400">
+                              (₹{(Number(form.fmChargeRate) || 1.5).toFixed(2)}/kg × {chargedWeight.toFixed(2)} kg)
+                            </span>
+                          </span>
+                          <span className="font-semibold text-slate-800">₹{fmChargeAmount.toFixed(2)}</span>
+                        </div>
+                      )}
 
                       {otherChargesTotal > 0 && (
                         <div className="flex items-center justify-between">
@@ -2165,6 +2193,7 @@ export default function NewBookingPage() {
           form={lrPrintForm}
           paymentLabel={paymentLabel}
           deliveryTypeLabel={deliveryTypeLabel}
+          handlingTypeLabel={handlingTypeLabel}
           actualWeight={actualWeight}
           chargedWeight={chargedWeight}
           volumetricWeight={volumetricWeight}

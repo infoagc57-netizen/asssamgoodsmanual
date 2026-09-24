@@ -840,6 +840,27 @@ body {
     border: 2px solid #000;
   }
 
+  .lr-handling-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 10pt;
+    font-weight: 800;
+    letter-spacing: 0.35px;
+    text-transform: uppercase;
+  }
+
+  .lr-handling-pill-fm {
+    background: #ecfdf5;
+    color: #047857;
+    border: 2px solid #059669;
+  }
+
+  .lr-handling-pill-selfdrop {
+    background: #f3f4f6;
+    color: #374151;
+    border: 2px solid #6b7280;
+  }
+
   .lr-h-title-datetime,
   .lr-h-title-lr {
     align-self: start;
