@@ -106,7 +106,7 @@ export async function POST(req) {
 
   await dbConnect();
 
-  const bookings = await Booking.find({ lrNumber: { $in: lrNumbers } });
+  const bookings = await Booking.find({ lrNumber: { $in: lrNumbers } }).lean();
   if (bookings.length !== lrNumbers.length) {
     const found = new Set(bookings.map((b) => b.lrNumber));
     const missing = lrNumbers.filter((lr) => !found.has(lr));
@@ -148,7 +148,7 @@ export async function POST(req) {
   }
 
   const payload = buildInvoicePayload({
-    bookings: ordered.map((b) => b.toObject()),
+    bookings: ordered,
     paymentType,
     invoiceDate: body.invoiceDate,
     dueDate: body.dueDate,

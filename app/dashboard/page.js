@@ -22,7 +22,7 @@ import AppLayout from "../../components/layout/AppLayout";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
-const REFRESH_MS = 30_000;
+const REFRESH_MS = 60_000;
 
 const emptySnapshot = {
   greeting: "Good day",
@@ -144,17 +144,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     refresh();
-    const interval = window.setInterval(refresh, REFRESH_MS);
-    const onFocus = () => refresh();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refresh();
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
     };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
+
+    const interval = window.setInterval(refreshIfVisible, REFRESH_MS);
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refresh]);
 

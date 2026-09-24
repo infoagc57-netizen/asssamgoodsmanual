@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AppLayout from "../../../components/layout/AppLayout";
-import LrPrintLayout from "@/components/bookings/LrPrintLayout";
+import dynamic from "next/dynamic";
+
+const LrPrintLayout = dynamic(() => import("@/components/bookings/LrPrintLayout"), {
+  ssr: false,
+});
 import { fetchRatesFromApi } from "@/lib/rateClient";
 import { godownFieldsFromRateMaster } from "@/lib/rateStationMatch";
 

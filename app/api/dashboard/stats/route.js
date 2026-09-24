@@ -4,7 +4,7 @@ import { dbConnect } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Party from "@/models/Party";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 function bookingRevenueExpr() {
   return { $ifNull: ["$grandTotal", 0] };
@@ -168,7 +168,7 @@ export async function GET() {
 
   const activity = mapRecentToActivity(recentBookings);
 
-  return NextResponse.json({
+  const data = {
     todayBookings,
     todayRevenue: todayRevenueAgg[0]?.total || 0,
     activeTrips,
@@ -192,5 +192,11 @@ export async function GET() {
     activity,
     branchSnapshot,
     generatedAt: new Date().toISOString(),
+  };
+
+  return NextResponse.json(data, {
+    headers: {
+      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+    },
   });
 }

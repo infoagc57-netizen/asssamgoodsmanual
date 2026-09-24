@@ -36,6 +36,7 @@ export async function GET(req) {
   }
 
   const bookings = await Booking.find(query)
+    .select("lrNumber date time status paymentType deliveryType grandTotal consignor consignee route goods charges createdAt")
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();

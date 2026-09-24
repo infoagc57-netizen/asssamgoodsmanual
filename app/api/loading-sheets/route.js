@@ -47,7 +47,7 @@ export async function POST(req) {
 
   await dbConnect();
 
-  const bookings = await Booking.find({ lrNumber: { $in: lrNumbers } });
+  const bookings = await Booking.find({ lrNumber: { $in: lrNumbers } }).lean();
   if (bookings.length !== lrNumbers.length) {
     return NextResponse.json({ error: "One or more bookings were not found" }, { status: 400 });
   }
@@ -71,7 +71,7 @@ export async function POST(req) {
   }
 
   const parsedDate = body.date ? new Date(body.date) : new Date();
-  const totals = summarizeLoadingBookings(bookings.map((b) => b.toObject()));
+  const totals = summarizeLoadingBookings(bookings);
 
   const sheet = await LoadingSheet.create({
     manifestNumber,

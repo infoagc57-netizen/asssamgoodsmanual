@@ -1,8 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppLayout from "../../components/layout/AppLayout";
-import ExcelUploadDialog from "../../components/rates/ExcelUploadDialog";
+
+const ExcelUploadDialog = dynamic(() => import("../../components/rates/ExcelUploadDialog"), {
+  ssr: false,
+});
 import { loadRatesWithMigration } from "@/lib/rateClient";
 
 const NAVY = "#071B34";

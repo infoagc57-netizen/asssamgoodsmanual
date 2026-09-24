@@ -7,31 +7,6 @@ import { appendTrackingEntry } from "@/lib/appendTrackingUpdate";
 
 export const dynamic = "force-dynamic";
 
-function entryTimestamp(entry) {
-  const raw = entry?.createdAt || entry?.timestamp;
-  if (!raw) return 0;
-  const time = new Date(raw).getTime();
-  return Number.isNaN(time) ? 0 : time;
-}
-
-function flattenTrackingUpdates(bookings) {
-  const rows = [];
-  for (const booking of bookings) {
-    const lrNumber = booking.lrNumber;
-    for (const entry of booking.trackingHistory || []) {
-      rows.push({
-        lrNumber,
-        id: entry.id || entry._id?.toString(),
-        event: entry.event || entry.status || "Update",
-        location: entry.location || entry.branch || "",
-        remark: entry.remark || entry.note || "",
-        createdAt: entry.createdAt || entry.timestamp || null,
-      });
-    }
-  }
-  return rows.sort((a, b) => entryTimestamp(b) - entryTimestamp(a));
-}
-
 export async function GET(req) {
   const session = await auth();
   if (!session?.user) {
@@ -43,11 +18,38 @@ export async function GET(req) {
 
   await dbConnect();
 
-  const bookings = await Booking.find({})
-    .select("lrNumber trackingHistory")
-    .lean();
-
-  const updates = flattenTrackingUpdates(bookings).slice(0, limit);
+  const updates = await Booking.aggregate([
+    { $match: { trackingHistory: { $exists: true, $ne: [] } } },
+    { $unwind: "$trackingHistory" },
+    {
+      $project: {
+        _id: 0,
+        lrNumber: 1,
+        id: { $ifNull: ["$trackingHistory.id", ""] },
+        status: { $ifNull: ["$trackingHistory.status", "$trackingHistory.event"] },
+        event: { $ifNull: ["$trackingHistory.event", "$trackingHistory.status", "Update"] },
+        location: { $ifNull: ["$trackingHistory.location", "$trackingHistory.branch", ""] },
+        branch: { $ifNull: ["$trackingHistory.branch", "$trackingHistory.location", ""] },
+        note: { $ifNull: ["$trackingHistory.note", "$trackingHistory.remark", ""] },
+        remark: { $ifNull: ["$trackingHistory.remark", "$trackingHistory.note", ""] },
+        timestamp: {
+          $ifNull: [
+            "$trackingHistory.timestamp",
+            "$trackingHistory.createdAt",
+          ],
+        },
+        createdAt: {
+          $ifNull: [
+            "$trackingHistory.createdAt",
+            "$trackingHistory.timestamp",
+          ],
+        },
+      },
+    },
+    { $match: { timestamp: { $ne: null } } },
+    { $sort: { timestamp: -1 } },
+    { $limit: limit },
+  ]);
 
   return NextResponse.json({ updates });
 }

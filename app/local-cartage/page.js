@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import * as XLSX from "xlsx";
 import AppLayout from "@/components/layout/AppLayout";
 
 const NAVY = "#071B34";
@@ -199,7 +198,8 @@ function LocalCartagePage() {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const sheetRows = entries.map((row, index) => ({
       SR: index + 1,
       Date: formatRowDate(row.date),

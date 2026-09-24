@@ -74,7 +74,7 @@ export async function POST(req) {
 
   await dbConnect();
 
-  const bookings = await Booking.find({ lrNumber: { $in: lrNumbers } });
+  const bookings = await Booking.find({ lrNumber: { $in: lrNumbers } }).lean();
   if (bookings.length !== lrNumbers.length) {
     const found = new Set(bookings.map((b) => b.lrNumber));
     const missing = lrNumbers.filter((lr) => !found.has(lr));
@@ -105,7 +105,7 @@ export async function POST(req) {
   }
 
   const parsedDate = body.date ? new Date(body.date) : new Date();
-  const totals = summarizeBookings(bookings.map((b) => b.toObject()));
+  const totals = summarizeBookings(bookings);
 
   const manifest = await Manifest.create({
     manifestNumber,

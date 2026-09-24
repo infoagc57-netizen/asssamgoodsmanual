@@ -1,8 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppLayout from "../../../components/layout/AppLayout";
-import LrPrintLayout from "../../../components/bookings/LrPrintLayout";
+
+const LrPrintLayout = dynamic(() => import("../../../components/bookings/LrPrintLayout"), {
+  ssr: false,
+});
 import SearchableSelect from "../../../components/ui/SearchableSelect";
 import PartySearchSelect from "../../../components/bookings/PartySearchSelect";
 import { INDIA_CITY_OPTIONS } from "@/lib/indiaCities";

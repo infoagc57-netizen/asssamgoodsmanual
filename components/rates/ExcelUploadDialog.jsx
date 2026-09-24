@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as XLSX from "xlsx";
 
 const NAVY = "#071B34";
 const ORANGE = "#F97316";
@@ -57,7 +56,7 @@ const findHeaderIndexes = (rows) => {
   return null;
 };
 
-const parseWorkbookRows = (workbook) => {
+const parseWorkbookRows = (workbook, XLSX) => {
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
     throw new Error("The file has no worksheets.");
@@ -97,7 +96,7 @@ const parseWorkbookRows = (workbook) => {
   return { parsed, skippedInvalidRate };
 };
 
-const readFileAsWorkbook = (file) => new Promise((resolve, reject) => {
+const readFileAsWorkbook = (file, XLSX) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = (event) => {
     try {
@@ -135,7 +134,8 @@ export default function ExcelUploadDialog({ open, onClose, onImport }) {
     if (!open) resetState();
   }, [open]);
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await import("xlsx");
     const worksheet = XLSX.utils.aoa_to_sheet([
       ["station", "rate", "godown_address", "godown_mobile"],
       ["guwahati", 10, "Plot 5, GS Road, Guwahati", "9876543210"],
@@ -166,8 +166,9 @@ export default function ExcelUploadDialog({ open, onClose, onImport }) {
     setFileName(file.name);
 
     try {
-      const workbook = await readFileAsWorkbook(file);
-      const { parsed, skippedInvalidRate: skipped } = parseWorkbookRows(workbook);
+      const XLSX = await import("xlsx");
+      const workbook = await readFileAsWorkbook(file, XLSX);
+      const { parsed, skippedInvalidRate: skipped } = parseWorkbookRows(workbook, XLSX);
       if (!parsed.length) {
         setError(
           skipped > 0

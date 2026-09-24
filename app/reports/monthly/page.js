@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import AppLayout from "@/components/layout/AppLayout";
 
 const NAVY = "#071B34";
@@ -91,7 +90,8 @@ export default function MonthlyReportPage() {
     { label: "Total amount", value: money(summary.totalAmount) },
   ], [summary]);
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const sheetRows = rows.map((row) => ({
       SR: row.sr,
       "LR No": row.lrNumber,

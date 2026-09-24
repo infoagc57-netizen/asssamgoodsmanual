@@ -19,7 +19,7 @@ export async function GET(_req, { params }) {
   }
 
   await dbConnect();
-  const doc = await Rate.findById(id);
+  const doc = await Rate.findById(id).lean();
   if (!doc) {
     return NextResponse.json({ error: "Rate not found." }, { status: 404 });
   }
