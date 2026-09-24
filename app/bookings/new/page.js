@@ -19,6 +19,7 @@ const ORANGE = "#F97316";
 const LR_STORAGE_KEY = "agc_next_lr";
 const FIRST_LR_NUMBER = 7900000001;
 const COD_HANDLING_FEE = 100;
+const HAMALI_PER_PACKAGE = 5;
 const DEFAULT_LR_CODE = "AGC";
 const DEFAULT_BOOKING_BRANCH = "Panchkula, Haryana";
 const CONSIGNEE_ID_TYPES = ["GST", "PAN", "Aadhaar"];
@@ -295,6 +296,7 @@ export default function NewBookingPage() {
   const [destinations, setDestinations] = useState([]);
   const [rateMaster, setRateMaster] = useState([]);
   const [timeIsManual, setTimeIsManual] = useState(false);
+  const [hamaliManuallyEdited, setHamaliManuallyEdited] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState({
     consignor: false,
     consignee: false,
@@ -481,6 +483,7 @@ export default function NewBookingPage() {
         const charges = record.charges || {};
         setIsEditMode(true);
         setTimeIsManual(true);
+        setHamaliManuallyEdited(false);
         setRateLookupReady(false);
         setRateBadge("");
         setForm((previous) => ({
@@ -940,6 +943,7 @@ export default function NewBookingPage() {
     setConsignorPartyId("");
     setConsigneePartyId("");
     setPartySaveState({ consignor: "", consignee: "" });
+    setHamaliManuallyEdited(false);
     const nextLr = isEditMode ? form.lrNumber : readNextLrNumber();
     setForm({
       lrNumber: nextLr, lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
@@ -1001,6 +1005,16 @@ export default function NewBookingPage() {
     const freightStr = autoFreight > 0 ? autoFreight.toFixed(2) : autoFreight === 0 && unitRate === 0 ? "" : "0.00";
     setForm((previous) => (String(previous.freight) === freightStr ? previous : { ...previous, freight: freightStr }));
   }, [form.rate, form.rateType, form.freightManuallyEdited, chargedWeight, packagesCount]);
+
+  useEffect(() => {
+    if (hamaliManuallyEdited) return;
+    if (packagesCount > 0) {
+      const hamaliStr = roundMoney(packagesCount * HAMALI_PER_PACKAGE).toFixed(2);
+      setForm((previous) => (String(previous.hamali) === hamaliStr ? previous : { ...previous, hamali: hamaliStr }));
+      return;
+    }
+    setForm((previous) => (previous.hamali === "" ? previous : { ...previous, hamali: "" }));
+  }, [form.noOfPackages, hamaliManuallyEdited, packagesCount]);
 
   useEffect(() => {
     if (!rateLookupReady || form.freightManuallyEdited) return;
@@ -2027,11 +2041,36 @@ export default function NewBookingPage() {
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Hamali</label>
+                      <label className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        <span>Hamali</span>
+                        {!hamaliManuallyEdited && packagesCount > 0 && (
+                          <span className="rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-700">Auto</span>
+                        )}
+                        {hamaliManuallyEdited && (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700">Manual</span>
+                        )}
+                      </label>
                       <div className="relative">
                         <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-base font-semibold text-slate-400">₹</span>
-                        <input type="number" name="hamali" min="0" step="0.01" placeholder="0.00" value={form.hamali} onChange={handleChange("hamali")} className={`${inp} pl-8`} />
+                        <input
+                          type="number"
+                          name="hamali"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={form.hamali}
+                          onChange={(e) => {
+                            setHamaliManuallyEdited(true);
+                            setForm((prev) => ({ ...prev, hamali: e.target.value }));
+                          }}
+                          className={`${inp} pl-8`}
+                        />
                       </div>
+                      {!hamaliManuallyEdited && packagesCount > 0 && (
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          ₹{HAMALI_PER_PACKAGE}/pkg × {packagesCount} pkg
+                        </p>
+                      )}
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
