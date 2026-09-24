@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   Building2,
+  Calculator,
   CalendarDays,
   ClipboardList,
   FileCheck2,
@@ -221,17 +223,26 @@ export default function DashboardPage() {
               {fetchError ? ` · ${fetchError}` : ""}
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {[
-              { label: "Today's Bookings", value: data.todayBookings },
-              { label: "Today's Revenue", value: money(data.todayRevenue) },
-              { label: "Active Trips", value: data.activeTrips },
-            ].map((item) => (
-              <div key={item.label} className="min-w-[140px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-white/50">{item.label}</p>
-                <p className="mt-1 text-xl font-bold text-white sm:text-2xl">{item.value}</p>
-              </div>
-            ))}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[
+                { label: "Today's Bookings", value: data.todayBookings },
+                { label: "Today's Revenue", value: money(data.todayRevenue) },
+                { label: "Active Trips", value: data.activeTrips },
+              ].map((item) => (
+                <div key={item.label} className="min-w-[140px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-white/50">{item.label}</p>
+                  <p className="mt-1 text-xl font-bold text-white sm:text-2xl">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <Link
+              href="/rate-calculator"
+              className="group flex items-center justify-center gap-2 self-center rounded-2xl border-2 border-orange-500 bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-600 hover:shadow-xl lg:self-stretch lg:px-5"
+            >
+              <Calculator className="h-4 w-4 shrink-0" />
+              Rate Calculator
+            </Link>
           </div>
         </div>
       </div>
