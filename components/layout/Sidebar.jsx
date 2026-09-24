@@ -20,6 +20,7 @@ import {
   IndianRupee,
   Handshake,
   FileText,
+  Calculator,
 } from "lucide-react";
 import BrandLogo from "../brand/BrandLogo";
 
@@ -44,6 +45,7 @@ const menuSections = [
     title: "Operations",
     items: [
       { label: "Bookings", href: "/bookings", icon: ClipboardList },
+      { label: "Rate Calculator", href: "/rate-calculator", icon: Calculator },
       { label: "Manifests", href: "/manifests", icon: FileText },
       { label: "Tracking Updates", href: "/tracking-updates", icon: Truck },
       { label: "Loading", href: "/loading", icon: Package },
