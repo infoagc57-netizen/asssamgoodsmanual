@@ -4,7 +4,7 @@ import { authConfig } from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/api/marketing/cron"];
 
 function applySecurityHeaders(response) {
   const securityHeaders = {

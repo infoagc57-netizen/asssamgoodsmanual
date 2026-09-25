@@ -12,6 +12,7 @@
     "icons": "node scripts/generate-app-icons.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
     "jsbarcode": "^3.12.3",
     "lucide-react": "^1.45.0",
