@@ -8,14 +8,6 @@ import { TRANSPORTER_ID } from "@/lib/constants";
 const LR_COPIES = [
   { type: "CONSIGNOR", color: "#071B34", label: "CONSIGNOR COPY" },
   { type: "CONSIGNEE", color: "#F97316", label: "CONSIGNEE COPY" },
-  { type: "DRIVER", color: "#374151", label: "DRIVER COPY" },
-  { type: "OFFICE", color: "#6B7280", label: "OFFICE COPY" },
-];
-
-/** Portrait A4: 2 copies per page (Consignor+Consignee, Driver+Office) */
-const LR_PRINT_PAGES = [
-  [LR_COPIES[0], LR_COPIES[1]],
-  [LR_COPIES[2], LR_COPIES[3]],
 ];
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
@@ -397,27 +389,23 @@ export default function LrPrintLayout(props) {
   return (
     <section className="lr-print-sheet" aria-label="Assam Goods Carrier LR print view">
       <div className="lr-print-container lr-print-container--portrait-dual">
-        {LR_PRINT_PAGES.flatMap((pageCopies) => {
-          const pageKey = pageCopies.map((c) => c.type).join("-");
-          return [
-            <div key={`lr-${pageKey}`} className="lr-print-page lr-print-page--bilty">
-              <LRCopy copy={pageCopies[0]} {...copyProps} />
-              <div className="lr-cut-line" aria-hidden="true">
-                <span className="lr-cut-line-icon">✂</span>
-                <span>Cut along dashed line</span>
-              </div>
-              <LRCopy copy={pageCopies[1]} {...copyProps} />
-            </div>,
-            <div key={`terms-${pageKey}`} className="lr-print-page lr-print-page--terms" aria-label="Terms and conditions (duplex back)">
-              <LrTermsHalf />
-              <div className="lr-cut-line" aria-hidden="true">
-                <span className="lr-cut-line-icon">✂</span>
-                <span>Cut along dashed line</span>
-              </div>
-              <LrTermsHalf />
-            </div>,
-          ];
-        })}
+        <div className="lr-print-page lr-print-page--bilty">
+          <LRCopy copy={LR_COPIES[0]} {...copyProps} />
+          <div className="lr-cut-line" aria-hidden="true">
+            <span className="lr-cut-line-icon">✂</span>
+            <span>Cut along dashed line</span>
+          </div>
+          <LRCopy copy={LR_COPIES[1]} {...copyProps} />
+        </div>
+
+        <div className="lr-print-page lr-print-page--terms" aria-label="Terms and conditions (duplex back)">
+          <LrTermsHalf />
+          <div className="lr-cut-line" aria-hidden="true">
+            <span className="lr-cut-line-icon">✂</span>
+            <span>Cut along dashed line</span>
+          </div>
+          <LrTermsHalf />
+        </div>
       </div>
 
       {packageCount > 0 && (

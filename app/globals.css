@@ -313,7 +313,7 @@ body {
     padding: 0 !important;
   }
 
-  /* LR bilty: 4 portrait pages (2 fronts + 2 T&C backs) for duplex long-edge + horizontal cut */
+  /* LR bilty: 2 portrait pages (1 front + 1 T&C back) for duplex long-edge + horizontal cut */
   .lr-print-section .lr-sticker-sheet {
     display: none !important;
     visibility: hidden !important;
