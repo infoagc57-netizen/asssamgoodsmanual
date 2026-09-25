@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getGeminiModel, parseJsonResponse } from "@/lib/geminiClient";
+import { getGeminiClient, parseJsonResponse } from "@/lib/geminiClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,9 +39,12 @@ Return ONLY valid JSON in this exact shape (no extra text):
 }`;
 
   try {
-    const model = getGeminiModel("gemini-1.5-flash-latest");
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const ai = getGeminiClient();
+const result = await ai.models.generateContent({
+  model: "gemini-3.8-flash",
+  contents: prompt,
+});
+const text = result.text;
     const parsed = parseJsonResponse(text);
 
     return NextResponse.json({
