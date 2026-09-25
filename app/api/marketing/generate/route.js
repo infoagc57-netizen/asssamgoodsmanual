@@ -39,7 +39,7 @@ Return ONLY valid JSON in this exact shape (no extra text):
 }`;
 
   try {
-    const model = getGeminiModel("gemini-1.5-flash");
+    const model = getGeminiModel("gemini-1.5-flash-latest");
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const parsed = parseJsonResponse(text);
