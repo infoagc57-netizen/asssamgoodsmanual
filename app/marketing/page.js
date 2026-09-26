@@ -64,6 +64,7 @@ export default function MarketingPage() {
       setHashtags(data.hashtags || []);
       setSelectedHashtags(data.hashtags || []);
       setSelectedCaption(data.captions?.[0] || "");
+            setImageUrl(data.imageUrl || "");
     } catch (err) {
       setError(err.message);
     } finally {
