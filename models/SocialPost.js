@@ -13,7 +13,7 @@ const SocialPostSchema = new mongoose.Schema(
     imageUrl: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["draft", "scheduled", "published", "failed"],
+      enum: ["draft", "scheduled", "published", "failed", "pending_approval"], // YAHAN NAYA STATUS ADD KIYA
       default: "draft",
       index: true,
     },

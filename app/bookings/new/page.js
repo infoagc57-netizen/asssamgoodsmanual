@@ -16,7 +16,6 @@ import { godownFieldsFromRateMaster } from "@/lib/rateStationMatch";
 const NAVY = "#071B34";
 const NAVY_LIGHT = "#14304D";
 const ORANGE = "#F97316";
-const LR_STORAGE_KEY = "agc_next_lr";
 const FIRST_LR_NUMBER = 7900000001;
 const COD_HANDLING_FEE = 100;
 const HAMALI_PER_PACKAGE = 5;
@@ -114,21 +113,6 @@ const lookupPincode = async (pincode) => {
     city: office.District || office.Name || "",
     state: office.State || "",
   };
-};
-
-const normalizeLrNumber = (value) => {
-  const numericValue = Number(value);
-  return Number.isInteger(numericValue) && numericValue >= FIRST_LR_NUMBER && numericValue <= 7999999999
-    ? String(numericValue).padStart(10, "0")
-    : String(FIRST_LR_NUMBER);
-};
-
-const readNextLrNumber = () => {
-  if (typeof window === "undefined") return String(FIRST_LR_NUMBER);
-  const storedValue = window.localStorage.getItem(LR_STORAGE_KEY);
-  const nextLr = normalizeLrNumber(storedValue);
-  if (!storedValue || storedValue !== nextLr) window.localStorage.setItem(LR_STORAGE_KEY, nextLr);
-  return nextLr;
 };
 
 const SectionCard = ({ title, subtitle, children, icon }) => (
@@ -282,6 +266,7 @@ const Field = ({ label, children, required, help }) => (
 
 export default function NewBookingPage() {
   const [lrMode, setLrMode] = useState("automatic");
+  const [nextLrPreview, setNextLrPreview] = useState("");
   const lrInputRef = useRef(null);
   const [customers, setCustomers] = useState([]);
   const [customerSearchRole, setCustomerSearchRole] = useState("");
@@ -311,7 +296,7 @@ export default function NewBookingPage() {
   const lastPincodeFetchRef = useRef({ consignor: "", consignee: "" });
   const lastRoutePincodeFetchRef = useRef({ from: "", to: "" });
   const [form, setForm] = useState({
-    lrNumber: String(FIRST_LR_NUMBER), lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
+    lrNumber: "", lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
     consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
     consignorCity: "", consignorState: "", consignorAddress: "",
     consigneeName: "", consigneeMobile: "", consigneeIdType: "GST", consigneeIdNumber: "", consigneeGst: "", consigneePincode: "",
@@ -560,15 +545,24 @@ export default function NewBookingPage() {
       return;
     }
 
-    const nextLr = readNextLrNumber();
     setTimeIsManual(false);
     setForm((previous) => ({
       ...previous,
-      lrNumber: nextLr,
+      lrNumber: "",
       bookingDate: getTodayDate(),
       bookingTime: getCurrentTime(),
     }));
     setRateLookupReady(true);
+
+    (async () => {
+      try {
+        const res = await fetch("/api/bookings/next-lr", { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok && data.nextLr) setNextLrPreview(String(data.nextLr));
+      } catch {
+        setNextLrPreview("");
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -878,7 +872,7 @@ export default function NewBookingPage() {
     if (isEditMode) return;
     setLrMode(mode);
     if (mode === "automatic") {
-      setForm((previous) => ({ ...previous, lrNumber: readNextLrNumber() }));
+      setForm((previous) => ({ ...previous, lrNumber: "" }));
       return;
     }
     if (mode === "manual") {
@@ -944,7 +938,7 @@ export default function NewBookingPage() {
     setConsigneePartyId("");
     setPartySaveState({ consignor: "", consignee: "" });
     setHamaliManuallyEdited(false);
-    const nextLr = isEditMode ? form.lrNumber : readNextLrNumber();
+    const nextLr = isEditMode ? form.lrNumber : "";
     setForm({
       lrNumber: nextLr, lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
       consignorName: "", consignorMobile: "", consignorGst: "", consignorPincode: "",
@@ -981,9 +975,28 @@ export default function NewBookingPage() {
     : dimensionVolume;
   const volumetricWeight = cbm * 167;
   const actualWeight = compute("actualWeight");
-  const chargedWeight = Math.max(actualWeight, volumetricWeight);
-  const chargedByVolumetricWeight = volumetricWeight > actualWeight;
   const packagesCount = compute("noOfPackages");
+  const MIN_BILLABLE_WEIGHT = 50; // overall minimum
+  const MIN_WEIGHT_PER_BOX = 15; // per-package minimum
+  const minByPackages = packagesCount * MIN_WEIGHT_PER_BOX;
+  const rawChargedWeight = Math.max(actualWeight, volumetricWeight, minByPackages);
+  const chargedWeight = rawChargedWeight > 0 ? Math.max(rawChargedWeight, MIN_BILLABLE_WEIGHT) : 0;
+  const chargedByVolumetricWeight = volumetricWeight > actualWeight;
+  const chargedWeightHint = (() => {
+    if (actualWeight === 0 && volumetricWeight === 0 && packagesCount === 0) return "";
+    if (
+      chargedWeight === MIN_BILLABLE_WEIGHT
+      && actualWeight < MIN_BILLABLE_WEIGHT
+      && minByPackages < MIN_BILLABLE_WEIGHT
+    ) {
+      return "Minimum 50 kg applied";
+    }
+    if (minByPackages > Math.max(actualWeight, volumetricWeight)) {
+      return "Charged by packages (₹15/kg per box)";
+    }
+    if (volumetricWeight > actualWeight) return "Charged by Volumetric Weight";
+    return "Charged by Actual Weight";
+  })();
 
   useEffect(() => {
     const nextCharged = chargedWeight > 0 ? chargedWeight.toFixed(2) : "";
@@ -1147,6 +1160,8 @@ export default function NewBookingPage() {
 
   const buildBookingPayload = (existingStatus) => ({
     lrCode: form.lrCode,
+    lrMode: isEditMode ? "manual" : lrMode,
+    lrNumber: isEditMode || lrMode === "manual" ? form.lrNumber : "",
     status: existingStatus || "Booked",
     date: form.bookingDate,
     time: form.bookingTime,
@@ -1239,7 +1254,7 @@ export default function NewBookingPage() {
       field?.focus();
     };
 
-    if (!/^79\d{8}$/.test(form.lrNumber)) {
+    if ((isEditMode || lrMode === "manual") && !/^79\d{8}$/.test(form.lrNumber)) {
       failValidation("Please enter a valid LR number (79 followed by 8 digits).", "lrNumber");
       return;
     }
@@ -1313,10 +1328,6 @@ export default function NewBookingPage() {
       savedLrNumber = data.booking?.lrNumber || form.lrNumber;
       if (!isEditMode) {
         setForm((previous) => ({ ...previous, lrNumber: savedLrNumber }));
-        window.localStorage.setItem(
-          LR_STORAGE_KEY,
-          normalizeLrNumber(Number(savedLrNumber) + 1),
-        );
       }
     } catch {
       window.alert("Failed to save booking.");
@@ -1330,7 +1341,12 @@ export default function NewBookingPage() {
   };
   const handlePrint = async () => {
     try {
-      const response = await fetch(`/api/bookings/${encodeURIComponent(form.lrNumber)}`);
+      const lrForPrint = form.lrNumber;
+      if (!lrForPrint) {
+        window.alert("Please save the LR before printing.");
+        return;
+      }
+      const response = await fetch(`/api/bookings/${encodeURIComponent(lrForPrint)}`);
       if (!response.ok) {
         window.alert("Please save the LR before printing.");
         return;
@@ -1344,7 +1360,9 @@ export default function NewBookingPage() {
   const paymentLabel = form.paymentType === "to_pay" ? "TO PAY" : form.paymentType === "paid" ? "PAID" : "TBB";
   const deliveryTypeLabel = form.deliveryType === "godown" ? "GODOWN DELIVERY" : "DOOR DELIVERY";
   const handlingTypeLabel = form.handlingType === "selfdrop" ? "SELF DROP" : "FM PICKUP";
-  const currentLrNumber = /^79\d{8}$/.test(form.lrNumber) ? form.lrNumber : String(FIRST_LR_NUMBER);
+  const currentLrNumber = /^79\d{8}$/.test(form.lrNumber)
+    ? form.lrNumber
+    : (nextLrPreview || String(FIRST_LR_NUMBER));
 
   const lrPrintForm = useMemo(() => {
     const pseudoBooking = {
@@ -1450,8 +1468,16 @@ export default function NewBookingPage() {
                       readOnly={isEditMode || lrMode === "automatic"}
                       value={form.lrNumber}
                       onChange={handleLrNumberChange}
+                      placeholder={lrMode === "automatic" && !isEditMode ? "Auto-generated on save" : "79XXXXXXXX"}
                       className={isEditMode || lrMode === "automatic" ? "w-full h-[42px] rounded-lg border border-white/10 bg-slate-200/10 px-3 text-[14px] text-white placeholder:text-slate-400 cursor-not-allowed" : "w-full h-[42px] rounded-lg border border-white/10 bg-white/5 px-3 text-[14px] text-white placeholder:text-slate-400 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-500/30"}
                     />
+                    {!isEditMode && lrMode === "automatic" ? (
+                      <p className="mt-1.5 text-[10px] text-slate-400">
+                        {nextLrPreview
+                          ? `Next LR will be: ${nextLrPreview} (subject to change if another booking is saved first)`
+                          : "Auto-generated on save"}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
@@ -1888,7 +1914,7 @@ export default function NewBookingPage() {
                   <Field label="Charged (KG)">
                     <input type="text" readOnly value={chargedWeight > 0 ? chargedWeight.toFixed(2) : ""} className={inpRo} />
                     <p className="mt-1 text-[11px] text-slate-500">
-                      {chargedByVolumetricWeight ? "Charged by Volumetric Weight" : "Charged by Actual Weight"}
+                      {chargedWeightHint || "—"}
                     </p>
                   </Field>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 xl:col-span-6">

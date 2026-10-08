@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import schemaOptions from "@/lib/schemaOptions";
-import { USER_ROLES } from "@/lib/constants";
 
 const UserSchema = new mongoose.Schema(
   {
@@ -25,15 +24,41 @@ const UserSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    companyName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    gstNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+    panNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     role: {
       type: String,
-      enum: Object.values(USER_ROLES),
-      default: USER_ROLES.OPERATOR,
+      enum: ["admin", "customer", "franchise"],
+      default: "admin",
       required: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "suspended"],
+      enum: ["active", "inactive", "suspended", "pending_approval"],
       default: "active",
     },
     passwordHash: {
@@ -61,6 +86,7 @@ const UserSchema = new mongoose.Schema(
 UserSchema.index({ email: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ status: 1 });
+UserSchema.index({ isActive: 1 });
 
 const User = mongoose.models.User || mongoose.model("User", UserSchema);
 

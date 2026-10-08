@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbConnect } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
-import { getNextLrNumber, serializeBooking } from "@/lib/serializeBooking";
+import { getNextLrNumber } from "@/lib/lrCounter";
+import { serializeBooking } from "@/lib/serializeBooking";
 import { upsertParty } from "@/lib/partyService";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // GET /api/bookings - list bookings
@@ -56,11 +58,36 @@ export async function POST(req) {
   const body = await req.json();
   await dbConnect();
 
-  const nextLr = await getNextLrNumber(Booking);
+  const requestedLr = String(body?.lrNumber || "").trim();
+  const lrMode = String(body?.lrMode || "automatic").toLowerCase().trim();
+  const useManual = lrMode === "manual" && requestedLr;
+
+  let lrNumber;
+  if (useManual) {
+    // Validate format: 10 digits starting with "79"
+    if (!/^79\d{8}$/.test(requestedLr)) {
+      return NextResponse.json(
+        { error: "Invalid LR number. Must be 10 digits starting with 79." },
+        { status: 400 },
+      );
+    }
+    // Duplicate check
+    const existing = await Booking.findOne({ lrNumber: requestedLr }).lean();
+    if (existing) {
+      return NextResponse.json(
+        { error: "This LR number is already used. Please try another." },
+        { status: 400 },
+      );
+    }
+    lrNumber = requestedLr;
+  } else {
+    lrNumber = await getNextLrNumber();
+  }
 
   const {
     _id,
     lrNumber: _ignoredLr,
+    lrMode: _ignoredLrMode,
     createdBy: _ignoredCreatedBy,
     trackingHistory: _ignoredTracking,
     ...rest
@@ -68,7 +95,7 @@ export async function POST(req) {
 
   const booking = await Booking.create({
     ...rest,
-    lrNumber: nextLr,
+    lrNumber,
     createdBy: session.user.id,
     status: body.status || "Booked",
     trackingHistory: [

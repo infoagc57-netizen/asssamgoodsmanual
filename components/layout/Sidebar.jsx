@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Truck,
@@ -22,6 +23,7 @@ import {
   FileText,
   Calculator,
   Megaphone,
+  Receipt,
 } from "lucide-react";
 import BrandLogo from "../brand/BrandLogo";
 
@@ -58,6 +60,13 @@ const menuSections = [
     ],
   },
   {
+    title: "Wallet",
+    items: [
+      { label: "Wallet Recharges", href: "/admin/wallet-recharges", icon: Receipt, adminOnly: true },
+      { label: "All Wallets", href: "/admin/wallets", icon: Wallet, adminOnly: true },
+    ],
+  },
+  {
     title: "Finance",
     items: [
       { label: "Accounts", href: "/accounts", icon: Wallet },
@@ -68,13 +77,29 @@ const menuSections = [
   },
   {
     title: "System",
-    items: [{ label: "Settings", href: "/settings", icon: Settings }],
+    items: [
+      { label: "Users", href: "/users", icon: Users, adminOnly: true },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
   },
 ];
 
 export default function Sidebar({ mobileOpen = false, collapsed = false, onClose }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
   const [tooltip, setTooltip] = useState(null);
+
+  const visibleSections = useMemo(
+    () =>
+      menuSections
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) => !item.adminOnly || role === "admin"),
+        }))
+        .filter((section) => section.items.length > 0),
+    [role],
+  );
 
   return (
     <>
@@ -114,7 +139,7 @@ export default function Sidebar({ mobileOpen = false, collapsed = false, onClose
       </div>
 
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4">
-        {menuSections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.title} className="mb-4">
             <p className={clsx(
               "px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/40",

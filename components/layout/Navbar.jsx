@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   Bell,
   Search,
@@ -11,7 +11,25 @@ import {
   User,
 } from "lucide-react";
 
-export default function Navbar({ onMenuToggle, collapsed = false }) {
+function formatRole(role) {
+  if (role === "franchise") return "Franchise";
+  if (role === "customer") return "Customer";
+  if (role === "admin") return "Administrator";
+  return "User";
+}
+
+export default function Navbar({
+  onMenuToggle,
+  collapsed = false,
+  userName: userNameProp,
+  userRole: userRoleProp,
+  userEmail: userEmailProp,
+  profileHref = "/settings",
+}) {
+  const { data: session } = useSession();
+  const userName = userNameProp || session?.user?.name || "User";
+  const userRole = userRoleProp || formatRole(session?.user?.role);
+  const userEmail = userEmailProp || session?.user?.email || "";
   const [searchFocused, setSearchFocused] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -76,8 +94,8 @@ export default function Navbar({ onMenuToggle, collapsed = false }) {
                 <User className="h-4 w-4" />
               </div>
               <div className="hidden flex-col items-start leading-tight sm:flex">
-                <span className="text-xs font-semibold text-[#1F2937]">Admin User</span>
-                <span className="text-[10px] text-slate-500">Administrator</span>
+                <span className="text-xs font-semibold text-[#1F2937]">{userName}</span>
+                <span className="text-[10px] text-slate-500">{userRole}</span>
               </div>
               <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
             </button>
@@ -90,12 +108,14 @@ export default function Navbar({ onMenuToggle, collapsed = false }) {
                 />
                 <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-[#E5E7EB] bg-white py-1 shadow-card-lg">
                   <div className="border-b border-[#E5E7EB] px-4 py-3">
-                    <p className="text-sm font-semibold text-[#1F2937]">Admin User</p>
-                    <p className="text-xs text-slate-500">admin@agcmanual.com</p>
+                    <p className="text-sm font-semibold text-[#1F2937]">{userName}</p>
+                    <p className="text-xs text-slate-500">{userEmail || userRole}</p>
                   </div>
                   <div className="py-1">
-                    <Link href="/settings" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">Profile Settings</Link>
-                    <a href="/settings" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">System Settings</a>
+                    <Link href={profileHref} className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">Profile Settings</Link>
+                    {profileHref === "/settings" && (
+                      <a href="/settings" className="block px-4 py-2 text-sm text-[#1F2937] hover:bg-[#F5F7FA]">System Settings</a>
+                    )}
                   </div>
                   <div className="border-t border-[#E5E7EB] py-1">
                     <button

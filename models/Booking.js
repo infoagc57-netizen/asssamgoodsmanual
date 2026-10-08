@@ -42,6 +42,33 @@ const BookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    markup: {
+      type: Number,
+      default: 0,
+    },
+    baseFreight: {
+      type: Number,
+      default: 0,
+    },
+    walletDeducted: {
+      type: Number,
+      default: 0,
+    },
+    paymentSource: {
+      type: String,
+      enum: ["cash", "wallet", "credit", ""],
+      default: "cash",
+    },
+    walletId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Wallet",
+      default: null,
+    },
+    walletTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WalletTransaction",
+      default: null,
+    },
     consignor: mongoose.Schema.Types.Mixed,
     consignee: mongoose.Schema.Types.Mixed,
     route: mongoose.Schema.Types.Mixed,
@@ -58,6 +85,12 @@ const BookingSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    franchiseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
     },
     manifestId: {
       type: mongoose.Schema.Types.ObjectId,

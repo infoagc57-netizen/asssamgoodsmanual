@@ -4,7 +4,15 @@ import { authConfig } from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/api/marketing/cron"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/pending-approval",
+  "/api/signup",
+  "/api/auth",
+  "/api/health",
+  "/api/marketing/cron",
+];
 
 function applySecurityHeaders(response) {
   const securityHeaders = {
@@ -24,18 +32,79 @@ function applySecurityHeaders(response) {
   return response;
 }
 
+function isPublicPath(pathname) {
+  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function isPortalAllowedPath(pathname, portalPrefix) {
+  return (
+    pathname.startsWith(portalPrefix) ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/login") ||
+    isPublicPath(pathname)
+  );
+}
+
 export default auth((request) => {
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isPublic = isPublicPath(pathname);
+  const role = request.auth?.user?.role;
+  const status = request.auth?.user?.status;
 
   if (pathname === "/login" && request.auth) {
-    return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard", request.url)));
+    const home =
+      status === "pending_approval"
+        ? "/pending-approval"
+        : role === "customer"
+          ? "/customer/dashboard"
+          : role === "franchise"
+            ? "/franchise/dashboard"
+            : "/dashboard";
+    return applySecurityHeaders(NextResponse.redirect(new URL(home, request.url)));
   }
 
   if (!request.auth && !isPublic) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
+  }
+
+  // Pending approval users: restrict to only pending-approval page
+  if (request.auth && status === "pending_approval") {
+    const allowedForPending =
+      pathname.startsWith("/pending-approval") ||
+      pathname.startsWith("/api/auth") ||
+      pathname.startsWith("/api/signup") ||
+      pathname === "/login";
+
+    if (!allowedForPending) {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL("/pending-approval", request.url)),
+      );
+    }
+
+    return applySecurityHeaders(NextResponse.next());
+  }
+
+  if (request.auth) {
+    if (role === "customer" && !isPortalAllowedPath(pathname, "/customer")) {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL("/customer/dashboard", request.url)),
+      );
+    }
+
+    if (role === "franchise" && !isPortalAllowedPath(pathname, "/franchise")) {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL("/franchise/dashboard", request.url)),
+      );
+    }
+
+    if (
+      role === "admin" &&
+      (pathname.startsWith("/customer/dashboard") || pathname.startsWith("/franchise/dashboard"))
+    ) {
+      return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard", request.url)));
+    }
   }
 
   return applySecurityHeaders(NextResponse.next());

@@ -1,13 +1,64 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import Link from "next/link";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import TransportScene from "@/components/login/TransportScene";
 import "@/components/login/login-scene.css";
 
 const NAVY = "#0B1F33";
 const ORANGE = "#F97316";
+
+function homeForRole(role) {
+  if (role === "customer") return "/customer/dashboard";
+  if (role === "franchise") return "/franchise/dashboard";
+  return "/dashboard";
+}
+
+function resolvePostLoginPath(callbackUrl, role) {
+  if (callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
+    return callbackUrl;
+  }
+  return homeForRole(role);
+}
+
+function messageFromSignInResult(result) {
+  const error = String(result?.error || "");
+  const code = String(result?.code || "");
+  let urlError = "";
+  let urlCode = "";
+
+  if (result?.url) {
+    try {
+      const parsed = new URL(result.url, window.location.origin);
+      urlError = parsed.searchParams.get("error") || "";
+      urlCode = parsed.searchParams.get("code") || "";
+    } catch {
+      // ignore invalid url
+    }
+  }
+
+  const haystack = `${error} ${code} ${urlError} ${urlCode}`.toLowerCase();
+
+  if (haystack.includes("pending_approval")) {
+    return "Your account is pending admin approval. Please wait.";
+  }
+  if (haystack.includes("deactivated")) {
+    return "Your account has been deactivated. Contact admin.";
+  }
+  if (haystack.includes("suspended")) {
+    return "Your account has been suspended. Contact admin.";
+  }
+  if (
+    error === "CredentialsSignin" ||
+    urlError === "CredentialsSignin" ||
+    haystack.includes("credentialssignin")
+  ) {
+    return "Invalid email or password.";
+  }
+  return "Login failed. Please try again.";
+}
 
 function LoginFormCard({
   email,
@@ -98,7 +149,7 @@ function LoginFormCard({
               ) : (
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542 7z" />
                 </svg>
               )}
             </button>
@@ -137,7 +188,14 @@ function LoginFormCard({
         </button>
       </form>
 
-      <p className="mt-6 text-center text-xs text-slate-500">
+      <p className="mt-5 text-center text-sm text-slate-500">
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="font-semibold hover:underline" style={{ color: ORANGE }}>
+          Sign Up
+        </Link>
+      </p>
+
+      <p className="mt-4 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} Assam Goods Carrier
       </p>
     </div>
@@ -170,16 +228,20 @@ function LoginPageContent() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password.");
+        setError(messageFromSignInResult(result));
         setLoading(false);
         return;
       }
 
-      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-      router.push(callbackUrl);
+      const session = await getSession();
+      const role = session?.user?.role;
+      const callbackUrl = searchParams.get("callbackUrl");
+      const destination = resolvePostLoginPath(callbackUrl, role);
+
+      router.push(destination);
       router.refresh();
     } catch {
-      setError("Login failed. Try again.");
+      setError("Login failed. Please try again.");
       setLoading(false);
     }
   };

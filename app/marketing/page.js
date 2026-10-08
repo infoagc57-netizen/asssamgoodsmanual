@@ -64,7 +64,7 @@ export default function MarketingPage() {
       setHashtags(data.hashtags || []);
       setSelectedHashtags(data.hashtags || []);
       setSelectedCaption(data.captions?.[0] || "");
-            setImageUrl(data.imageUrl || "");
+      setImageUrl(data.imageUrl || "");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -346,8 +346,8 @@ export default function MarketingPage() {
 
         {/* POSTS LIST */}
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex gap-2 mb-4">
-            {["all", "draft", "scheduled", "published", "failed"].map((t) => (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {["all", "draft", "scheduled", "published", "failed", "pending_approval"].map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -355,7 +355,7 @@ export default function MarketingPage() {
                   tab === t ? "bg-[#071B34] text-white" : "bg-slate-100 text-slate-600"
                 }`}
               >
-                {t}
+                {t.replace("_", " ")}
               </button>
             ))}
           </div>
@@ -384,10 +384,12 @@ export default function MarketingPage() {
                             ? "bg-orange-100 text-orange-700"
                             : p.status === "failed"
                             ? "bg-red-100 text-red-700"
+                            : p.status === "pending_approval"
+                            ? "bg-blue-100 text-blue-700"
                             : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {p.status}
+                        {p.status.replace("_", " ")}
                       </span>
                     </div>
                     <div className="text-sm text-slate-700 truncate">
@@ -406,7 +408,15 @@ export default function MarketingPage() {
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    {p.status !== "published" && (
+                    {p.status === "pending_approval" && (
+                      <button
+                        onClick={() => publishNow(p._id)}
+                        className="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white"
+                      >
+                        Approve
+                      </button>
+                    )}
+                    {p.status !== "published" && p.status !== "pending_approval" && (
                       <button
                         onClick={() => publishNow(p._id)}
                         className="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white"

@@ -1,9 +1,16 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
 import { dbConnect } from "./lib/mongodb";
 import User from "./models/User";
+
+class AccountStatusSignin extends CredentialsSignin {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -32,12 +39,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        console.log("[AUTH] User status:", user.status);
-        if (user.status !== "active") {
-          console.log("[AUTH] User not active");
-          return null;
-        }
-
         if (!user.passwordHash) {
           console.log("[AUTH] User has no passwordHash on document");
           return null;
@@ -53,6 +54,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        console.log("[AUTH] User status:", user.status, "isActive:", user.isActive);
+
+        // Pending users may have isActive:false — still allow login (middleware restricts them).
+        if (user.isActive === false && user.status !== "pending_approval") {
+          throw new AccountStatusSignin("deactivated");
+        }
+
+        if (user.status === "suspended") {
+          throw new AccountStatusSignin("suspended");
+        }
+
         console.log("[AUTH] Login SUCCESS for:", user.email);
         user.lastLoginAt = new Date();
         user.last_login = user.lastLoginAt;
@@ -64,6 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          status: user.status,
         };
       },
     }),
