@@ -7,8 +7,12 @@ const { auth } = NextAuth(authConfig);
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
+  "/forgot-password",
   "/pending-approval",
   "/api/signup",
+  "/api/send-otp",
+  "/api/verify-otp",
+  "/api/reset-password",
   "/api/auth",
   "/api/health",
   "/api/marketing/cron",
@@ -69,13 +73,17 @@ export default auth((request) => {
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
-  // Pending approval users: restrict to only pending-approval page
+  // Pending approval users: restrict to only pending-approval page and public auth routes
   if (request.auth && status === "pending_approval") {
     const allowedForPending =
       pathname.startsWith("/pending-approval") ||
       pathname.startsWith("/api/auth") ||
       pathname.startsWith("/api/signup") ||
-      pathname === "/login";
+      pathname.startsWith("/api/send-otp") ||
+      pathname.startsWith("/api/verify-otp") ||
+      pathname.startsWith("/api/reset-password") ||
+      pathname === "/login" ||
+      pathname === "/forgot-password";
 
     if (!allowedForPending) {
       return applySecurityHeaders(

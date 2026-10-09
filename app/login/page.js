@@ -111,14 +111,13 @@ function LoginFormCard({
             <label htmlFor="password" className="block text-sm font-medium" style={{ color: NAVY }}>
               Password
             </label>
-            <a
-              href="#"
+            <Link
+              href="/forgot-password"
               className="text-xs font-medium hover:underline"
               style={{ color: ORANGE }}
-              onClick={(e) => e.preventDefault()}
             >
               Forgot password?
-            </a>
+            </Link>
           </div>
           <div className="relative">
             <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
