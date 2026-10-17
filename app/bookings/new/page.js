@@ -266,6 +266,7 @@ const Field = ({ label, children, required, help }) => (
 
 export default function NewBookingPage() {
   const [lrMode, setLrMode] = useState("automatic");
+  const [hideFreightOnPrint, setHideFreightOnPrint] = useState(false);
   const [nextLrPreview, setNextLrPreview] = useState("");
   const lrInputRef = useRef(null);
   const [customers, setCustomers] = useState([]);
@@ -538,6 +539,7 @@ export default function NewBookingPage() {
           paymentType: record.paymentType || "to_pay",
           deliveryType: record.deliveryType || "door",
         }));
+        setHideFreightOnPrint(Boolean(record.hideFreightOnPrint));
       } catch {
         window.alert("Unable to load booking for edit.");
       }
@@ -938,6 +940,7 @@ export default function NewBookingPage() {
     setConsigneePartyId("");
     setPartySaveState({ consignor: "", consignee: "" });
     setHamaliManuallyEdited(false);
+    setHideFreightOnPrint(false);
     const nextLr = isEditMode ? form.lrNumber : "";
     setForm({
       lrNumber: nextLr, lrCode: DEFAULT_LR_CODE, bookingDate: getTodayDate(), bookingTime: getCurrentTime(), bookingBranch: DEFAULT_BOOKING_BRANCH,
@@ -1166,6 +1169,7 @@ export default function NewBookingPage() {
     date: form.bookingDate,
     time: form.bookingTime,
     paymentType: form.paymentType,
+    hideFreightOnPrint,
     deliveryType: form.deliveryType || "door",
     handlingType: form.handlingType === "selfdrop" ? "selfdrop" : "fm",
     godownAddress: form.godownAddress || "",
@@ -2064,6 +2068,15 @@ export default function NewBookingPage() {
                           FM charges: ₹{(Number(form.fmChargeRate) || 1.5).toFixed(2)}/kg × {chargedWeight.toFixed(2)} kg = ₹{fmChargeAmount.toFixed(2)}
                         </p>
                       )}
+                      <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-900">
+                        <input
+                          type="checkbox"
+                          checked={hideFreightOnPrint}
+                          onChange={(event) => setHideFreightOnPrint(event.target.checked)}
+                          className="h-4 w-4 accent-orange-600"
+                        />
+                        <span>Hide Freight on Print (Show PAID)</span>
+                      </label>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
@@ -2254,6 +2267,7 @@ export default function NewBookingPage() {
         <LrPrintLayout
           lrNumber={currentLrNumber}
           form={lrPrintForm}
+          hideFreightOnPrint={hideFreightOnPrint}
           paymentLabel={paymentLabel}
           deliveryTypeLabel={deliveryTypeLabel}
           handlingTypeLabel={handlingTypeLabel}

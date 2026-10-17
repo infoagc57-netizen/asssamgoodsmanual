@@ -532,6 +532,7 @@ export default function BookingDetailsPage() {
       <LrPrintLayout
         lrNumber={booking.lrNumber}
         form={bookingToPrintForm(booking, rateMaster)}
+        hideFreightOnPrint={Boolean(booking.hideFreightOnPrint)}
         paymentLabel={paymentLabel(booking.paymentType)}
         deliveryTypeLabel={deliveryTypeLabel(booking.deliveryType)}
         handlingTypeLabel={handlingTypePrintLabel(booking)}

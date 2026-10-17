@@ -73,6 +73,7 @@ function LRCopy({
   lrNumber,
   form,
   paymentLabel,
+  hideFreightOnPrint = false,
   deliveryTypeLabel = "DOOR DELIVERY",
   handlingTypeLabel = "FM PICKUP",
   actualWeight,
@@ -113,6 +114,10 @@ function LRCopy({
   const storedGrandTotal = Number(grandTotal) || 0;
   const grandTotalNum = storedGrandTotal > 0 ? storedGrandTotal : fareLineSubtotal;
   const subtotal = fareLineSubtotal;
+  const fareAmount = (value) => hideFreightOnPrint ? "PAID" : amt(value);
+  const fareAmountCellClass = hideFreightOnPrint
+    ? "col-amt whitespace-nowrap text-center"
+    : "col-amt";
 
   return (
     <article className="lr-copy">
@@ -142,7 +147,7 @@ function LRCopy({
           <span className="lr-copy-badge" style={{ backgroundColor: copy.color }}>{copy.label}</span>
           <h1>LORRY RECEIPT / BILTY</h1>
           <div className="lr-title-pills">
-            <span className="lr-payment-pill">{paymentLabel}</span>
+            {!hideFreightOnPrint && <span className="lr-payment-pill">{paymentLabel}</span>}
             <span className={`lr-delivery-pill ${deliveryTypeLabel.includes("GODOWN") ? "lr-delivery-pill-godown" : "lr-delivery-pill-door"}`}>
               {deliveryTypeLabel}
             </span>
@@ -290,45 +295,47 @@ function LRCopy({
                 <tr>
                   <td className="col-sn">1</td>
                   <td>Freight</td>
-                  <td className="col-amt">{amt(charges.freight)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.freight)}</td>
                 </tr>
                 <tr>
                   <td className="col-sn">2</td>
                   <td>FM Charges</td>
-                  <td className="col-amt">{amt(charges.fmChargeAmount)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.fmChargeAmount)}</td>
                 </tr>
                 <tr>
                   <td className="col-sn">3</td>
                   <td>Hamali</td>
-                  <td className="col-amt">{amt(charges.hamali)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.hamali)}</td>
                 </tr>
                 <tr>
                   <td className="col-sn">4</td>
                   <td>Door Delivery</td>
-                  <td className="col-amt">{amt(charges.doorDelivery)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.doorDelivery)}</td>
                 </tr>
                 <tr>
                   <td className="col-sn">5</td>
                   <td>Local Cartage Charges</td>
-                  <td className="col-amt">{amt(charges.localCartageCharges || charges.localCartage)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.localCartageCharges || charges.localCartage)}</td>
                 </tr>
                 <tr>
                   <td className="col-sn">6</td>
                   <td>Builty Charge</td>
-                  <td className="col-amt">{amt(charges.builtyCharge)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.builtyCharge)}</td>
                 </tr>
                 <tr>
                   <td className="col-sn">7</td>
                   <td>Other Charges</td>
-                  <td className="col-amt">{amt(charges.otherCharges)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(charges.otherCharges)}</td>
                 </tr>
                 <tr className="row-subtotal">
                   <td colSpan={2}>SUB TOTAL</td>
-                  <td className="col-amt">{amt(subtotal)}</td>
+                  <td className={fareAmountCellClass}>{fareAmount(subtotal)}</td>
                 </tr>
                 <tr className="row-grand">
                   <td colSpan={2}>GRAND TOTAL</td>
-                  <td className="col-amt">₹ {amt(grandTotalNum)}</td>
+                  <td className={fareAmountCellClass}>
+                    {hideFreightOnPrint ? "PAID" : `₹ ${amt(grandTotalNum)}`}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -336,9 +343,13 @@ function LRCopy({
             <div className="lr-grand-banner" aria-label="Grand total">
               <div className="lr-grand-banner-head">
                 <span className="lr-grand-banner-label">TOTAL AMOUNT</span>
-                <span className="lr-grand-banner-amount">₹ {amt(grandTotalNum)}</span>
+                <span className="lr-grand-banner-amount">
+                  {hideFreightOnPrint ? "₹ PAID" : `₹ ${amt(grandTotalNum)}`}
+                </span>
               </div>
-              <div className="lr-grand-banner-words">{numberToWords(grandTotalNum)}</div>
+              {!hideFreightOnPrint && (
+                <div className="lr-grand-banner-words">{numberToWords(grandTotalNum)}</div>
+              )}
             </div>
 
             <div className="lr-pay-stamp-row lr-pay-stamp-row--solo">

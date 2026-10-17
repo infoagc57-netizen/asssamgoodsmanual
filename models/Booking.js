@@ -32,6 +32,7 @@ const BookingSchema = new mongoose.Schema(
     date: String,
     time: String,
     paymentType: String,
+    hideFreightOnPrint: { type: Boolean, default: false },
     deliveryType: {
       type: String,
       default: "door",
